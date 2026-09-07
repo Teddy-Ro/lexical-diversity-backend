@@ -3,7 +3,6 @@ import os
 
 MEDIA_URL = os.getenv("MINIO_PUBLIC_URL", "http://localhost:9000/lexical-media")
 
-# Единственная коллекция первой лабораторной. БД не используется.
 AUTHOR_TEXTS = [
     {
         "id": 1,
@@ -12,7 +11,7 @@ AUTHOR_TEXTS = [
         "excerpt": "Роман-эпопея о русском обществе в эпоху наполеоновских войн.",
         "publication_year": 1869,
         "status": "published",
-        "image_url": f"{MEDIA_URL}/tolstoy-war-and-peace.svg",
+        "image_url": f"{MEDIA_URL}/tolstoy-war-and-peace.jpg",
         "video_url": f"{MEDIA_URL}/tolstoy-war-and-peace.webm",
         "token_count": 587287,
         "unique_type_count": 18210,
@@ -25,7 +24,7 @@ AUTHOR_TEXTS = [
         "excerpt": "Исторический роман о событиях Пугачёвского восстания.",
         "publication_year": 1836,
         "status": "published",
-        "image_url": f"{MEDIA_URL}/pushkin-captains-daughter.svg",
+        "image_url": f"{MEDIA_URL}/pushkin-captains-daughter.jpg",
         "video_url": f"{MEDIA_URL}/pushkin-captains-daughter.webm",
         "token_count": 38420,
         "unique_type_count": 8907,
@@ -38,7 +37,7 @@ AUTHOR_TEXTS = [
         "excerpt": "Рассказ о случайной встрече в Ялте и нравственном выборе героев.",
         "publication_year": 1899,
         "status": "published",
-        "image_url": f"{MEDIA_URL}/chekhov-lady-with-dog.svg",
+        "image_url": f"{MEDIA_URL}/chekhov-lady-with-dog.jpg",
         "video_url": f"{MEDIA_URL}/chekhov-lady-with-dog.webm",
         "token_count": 8710,
         "unique_type_count": 3451,
@@ -51,7 +50,7 @@ AUTHOR_TEXTS = [
         "excerpt": "Роман о преступлении, вине и нравственном возрождении.",
         "publication_year": 1866,
         "status": "published",
-        "image_url": f"{MEDIA_URL}/dostoevsky-crime-punishment.svg",
+        "image_url": f"{MEDIA_URL}/dostoevsky-crime-punishment.jpg",
         "video_url": f"{MEDIA_URL}/dostoevsky-crime-punishment.webm",
         "token_count": 211591,
         "unique_type_count": 16984,
@@ -64,7 +63,7 @@ AUTHOR_TEXTS = [
         "excerpt": "Черновик карточки для будущего TTR-анализа.",
         "publication_year": 1862,
         "status": "draft",
-        "image_url": f"{MEDIA_URL}/turgenev-fathers-sons.svg",
+        "image_url": f"{MEDIA_URL}/turgenev-fathers-sons.jpg",
         "video_url": f"{MEDIA_URL}/turgenev-fathers-sons.webm",
         "token_count": 78200,
         "unique_type_count": 11250,
@@ -77,7 +76,7 @@ AUTHOR_TEXTS = [
         "excerpt": "Удалённая карточка.",
         "publication_year": 1842,
         "status": "deleted",
-        "image_url": f"{MEDIA_URL}/lermontov-demon.svg",
+        "image_url": f"{MEDIA_URL}/lermontov-demon.jpg",
         "video_url": f"{MEDIA_URL}/lermontov-demon.webm",
         "token_count": 17900,
         "unique_type_count": 5430,

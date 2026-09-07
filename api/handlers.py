@@ -7,7 +7,6 @@ from fastapi.templating import Jinja2Templates
 
 from data.collections import AUTHOR_TEXTS
 
-
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = Path(
     os.getenv("FRONTEND_ROOT", PROJECT_DIR.parent / "lexical-diversity-frontend")
@@ -49,7 +48,9 @@ def show_text_grid(
             "title": "Корпус текстов",
             "active_grid": True,
             "author_texts": author_texts,
-            "min_unique_words": min_unique_words if min_unique_words is not None else "",
+            "min_unique_words": (
+                min_unique_words if min_unique_words is not None else ""
+            ),
         },
     )
 
@@ -57,7 +58,11 @@ def show_text_grid(
 @router.get("/author-texts/draft", response_class=HTMLResponse)
 def show_text_draft(request: Request):
     draft = next(
-        (author_text for author_text in AUTHOR_TEXTS if author_text["status"] == "draft"),
+        (
+            author_text
+            for author_text in AUTHOR_TEXTS
+            if author_text["status"] == "draft"
+        ),
         None,
     )
     if draft is None:
