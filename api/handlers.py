@@ -1,11 +1,10 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-
 from data.collections import AUTHOR_TEXTS
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = Path(
@@ -24,6 +23,11 @@ def text_for_page(author_text: dict) -> dict:
     result["ttr"] = f"{ttr:.3f}"
     result["ttr_percent"] = f"{ttr * 100:.1f}%"
     return result
+
+
+@router.get("/", include_in_schema=False)
+def show_home():
+    return RedirectResponse(url="/author-texts")
 
 
 @router.get("/author-texts", response_class=HTMLResponse)

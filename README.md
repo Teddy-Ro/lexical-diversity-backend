@@ -10,26 +10,42 @@
 
 ## Запуск
 
+### Windows PowerShell
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+docker compose up -d
+python main.py
+```
+
+### macOS/Linux
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+docker compose up -d
+python main.py
 ```
 
-Быстрый запуск без Docker:
+Для запуска без Docker медиа можно раздавать непосредственно через FastAPI.
+
+Windows PowerShell:
+
+```powershell
+$env:MINIO_PUBLIC_URL = "http://127.0.0.1:8000/media"
+python main.py
+```
+
+macOS/Linux:
 
 ```bash
 MINIO_PUBLIC_URL=http://127.0.0.1:8000/media python main.py
 ```
 
-Полный запуск с MinIO:
-
-```bash
-docker compose up -d
-python main.py
-```
-
-Приложение: <http://127.0.0.1:8000/author-texts>
+Приложение: <http://127.0.0.1:8000/> (перенаправляет на `/author-texts`).
 
 ## Три GET-маршрута
 
