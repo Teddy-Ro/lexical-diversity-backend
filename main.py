@@ -2,24 +2,34 @@ import os
 from pathlib import Path
 
 import uvicorn
-from api.handlers import router
+from api.ttr_handlers import ttr_router
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-PROJECT_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = Path(
-    os.getenv("FRONTEND_ROOT", PROJECT_DIR.parent / "lexical-diversity-frontend")
+TTR_PROJECT_DIR = Path(__file__).resolve().parent
+TTR_FRONTEND_DIR = Path(
+    os.getenv(
+        "TTR_FRONTEND_ROOT",
+        TTR_PROJECT_DIR.parent / "lexical-diversity-frontend",
+    )
 ).resolve()
 
-app = FastAPI(title="Lexical Diversity")
+ttr_app = FastAPI(title="TTR — Type-Token Ratio")
 
-app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "public"), name="assets")
-app.mount(
-    "/media",
-    StaticFiles(directory=FRONTEND_DIR / "minio-seed" / "media"),
-    name="media",
+ttr_app.mount(
+    "/ttr-assets",
+    StaticFiles(directory=TTR_FRONTEND_DIR / "public"),
+    name="ttr-assets",
 )
-app.include_router(router)
+ttr_app.mount(
+    "/ttr-media",
+    StaticFiles(directory=TTR_FRONTEND_DIR / "minio-seed" / "media"),
+    name="ttr-media",
+)
+ttr_app.include_router(ttr_router)
+
+# Имя app оставлено как стандартная точка входа ASGI/Uvicorn.
+app = ttr_app
 
 
 if __name__ == "__main__":
