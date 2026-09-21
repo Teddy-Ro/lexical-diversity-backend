@@ -28,7 +28,6 @@ ttr_app.mount(
 )
 ttr_app.include_router(ttr_router)
 
-# Имя app оставлено как стандартная точка входа ASGI/Uvicorn.
 app = ttr_app
 
 
