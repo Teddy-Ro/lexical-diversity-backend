@@ -5,3 +5,5 @@ python-multipart==0.0.32
 aiofiles==25.1.0
 sqlalchemy==2.0.52
 alembic==1.19.2
+asyncpg==0.30.0
+pydantic-settings==2.11.0

@@ -1,59 +1,78 @@
-# TTR Backend
+# TTR Backend — лабораторная работа №2
 
-Лабораторная работа №1 на FastAPI и Jinja2.
+FastAPI-приложение для расчёта лексического разнообразия авторских текстов.
+Данные хранятся в PostgreSQL, запросы выполняются асинхронно через SQLAlchemy
+и `asyncpg`, структура БД управляется Alembic.
 
-- Тема: «Расчёт лексического разнообразия текстов автора TTR».
-- Карточка: `ttr_text` — текст автора.
-- Предметные поля: `unique_token_count` и `text_length`.
-- Фильтрация: минимальная длина текста.
-- Префикс предметной области: `ttr`.
-- Дизайн-референс: [CapsToLowercase](https://www.capstolowercase.com/lexical-diversity-calculator).
+## Быстрый запуск в Docker
 
-## Запуск
+Выберите один способ запуска backend: целиком в Docker или локально через
+`python main.py`. Одновременно использовать оба способа не нужно, поскольку
+оба занимают порт `8000`.
 
-### Windows PowerShell
+```powershell
+docker compose --profile full up -d --build
+```
+
+- приложение: <http://127.0.0.1:8000/ttr-texts>;
+- Adminer: <http://127.0.0.1:8080>;
+- MinIO: <http://127.0.0.1:9001>.
+
+PostgreSQL внутри Docker работает на `5432`, а на Windows опубликован через
+`55432`, чтобы не конфликтовать с локальной установкой PostgreSQL.
+
+Данные для входа в Adminer:
+
+```text
+Система: PostgreSQL
+Сервер: ttr-postgres
+Пользователь: ttr_user
+Пароль: ttr_password
+База данных: ttr_database
+```
+
+При запуске backend-контейнер сам применяет миграции и один раз добавляет
+демонстрационные данные.
+
+## Локальный запуск backend
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-docker compose up -d
+Copy-Item .env.example .env
+docker compose up -d ttr-postgres ttr-adminer ttr-minio ttr-minio-seed
+python -m alembic upgrade head
+python -m data.ttr_seed
 python main.py
 ```
 
-### macOS/Linux
+При локальном запуске приложение доступно на <http://127.0.0.1:8000>.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-docker compose up -d
-python main.py
-```
+## Модель данных
 
-Для запуска без Docker медиа можно раздавать через FastAPI.
+- `ttr_users` — пользователи и создатели текстов;
+- `ttr_texts` — тексты со статусами `draft`, `published`, `deleted`;
+- `ttr_text_likes` — связь многие-ко-многим пользователей и текстов.
 
-Windows PowerShell:
+На одного пользователя допускается только один черновик. Каскадное удаление
+не используется. Количество токенов, уникальных токенов и TTR вычисляются из
+введённого текста без учёта регистра. Новые фото и видео в ЛР-2 не сохраняются.
+
+## Шесть HTTP-методов ЛР-2
+
+- `GET /ttr-texts` — корпус и фильтрация по длине;
+- `GET /ttr-texts/add` — создание или продолжение черновика;
+- `GET /ttr-texts/{ttr_text_id}` — опубликованный текст в ленте;
+- `POST /ttr-texts/drafts` — добавление и публикация нового текста через ORM;
+- `POST /ttr-texts/{ttr_text_id}/publish` — публикация через ORM;
+- `POST /ttr-texts/{ttr_text_id}/delete` — логическое удаление сырым SQL `UPDATE`.
+
+## Проверка
 
 ```powershell
-$env:TTR_MINIO_PUBLIC_URL = "http://127.0.0.1:8000/ttr-media"
-python main.py
+python -m unittest discover -s tests -p "ttr_test_*.py"
+python -m alembic check
 ```
 
-macOS/Linux:
-
-```bash
-TTR_MINIO_PUBLIC_URL=http://127.0.0.1:8000/ttr-media python main.py
-```
-
-Приложение: <http://127.0.0.1:8000/>.
-
-## Три GET-маршрута
-
-- `GET /ttr-texts?min_text_length=100000` — плитка и фильтр-слайдер.
-- `GET /ttr-texts/add` — форма добавления без сохранения.
-- `GET /ttr-texts/{ttr_text_id}` — лента с выбранного текста.
-
-В первой лабораторной базы данных нет: данные хранятся в коллекции
-`TTR_TEXTS`. Статус используется только для серверного выбора опубликованных
-карточек и черновика, но не отображается в интерфейсе.
+ER-диаграмма и перечень скриншотов находятся в каталоге `docs`.

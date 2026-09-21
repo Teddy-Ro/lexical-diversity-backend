@@ -1,18 +1,13 @@
-import os
 from pathlib import Path
 
 import uvicorn
 from api.ttr_handlers import ttr_router
+from config.ttr_settings import get_ttr_settings
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 TTR_PROJECT_DIR = Path(__file__).resolve().parent
-TTR_FRONTEND_DIR = Path(
-    os.getenv(
-        "TTR_FRONTEND_ROOT",
-        TTR_PROJECT_DIR.parent / "lexical-diversity-frontend",
-    )
-).resolve()
+TTR_FRONTEND_DIR = Path(get_ttr_settings().ttr_frontend_root).resolve()
 
 ttr_app = FastAPI(title="TTR — Type-Token Ratio")
 

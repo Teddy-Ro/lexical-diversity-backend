@@ -1,4 +1,53 @@
 services:
+  ttr-backend:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ttr-backend
+    depends_on:
+      ttr-postgres:
+        condition: service_healthy
+      ttr-minio:
+        condition: service_healthy
+    environment:
+      TTR_DATABASE_URL: postgresql+asyncpg://ttr_user:ttr_password@ttr-postgres:5432/ttr_database
+      TTR_FRONTEND_ROOT: /app/frontend
+      TTR_MINIO_PUBLIC_URL: http://localhost:9000/ttr-media
+      TTR_CURRENT_USER_ID: 1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../lexical-diversity-frontend:/app/frontend:ro
+
+  ttr-postgres:
+    image: postgres:16-alpine
+    container_name: ttr-postgres
+    environment:
+      POSTGRES_DB: ttr_database
+      POSTGRES_USER: ttr_user
+      POSTGRES_PASSWORD: ttr_password
+    ports:
+      - "55432:5432"
+    volumes:
+      - ttr-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ttr_user -d ttr_database"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ttr-adminer:
+    image: adminer:4
+    container_name: ttr-adminer
+    depends_on:
+      ttr-postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: ttr-postgres
+    ports:
+      - "8080:8080"
+
   ttr-minio:
     image: minio/minio:latest
     container_name: ttr-minio
@@ -30,4 +79,5 @@ services:
     entrypoint: ["/bin/sh", "/seed/ttr_seed_minio.sh"]
 
 volumes:
+  ttr-postgres-data:
   ttr-minio-data:
