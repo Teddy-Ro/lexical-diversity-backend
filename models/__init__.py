@@ -1,3 +1,3 @@
-from models.ttr_models import TTRLike, TTRText, TTRTextStatus, TTRUser
+from models.author_texts_models import AuthorTextsLike, AuthorText, AuthorTextStatus, AuthorTextsUser
 
-__all__ = ["TTRLike", "TTRText", "TTRTextStatus", "TTRUser"]
+__all__ = ["AuthorTextsLike", "AuthorText", "AuthorTextStatus", "AuthorTextsUser"]

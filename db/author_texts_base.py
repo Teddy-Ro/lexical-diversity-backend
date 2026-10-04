@@ -1,5 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase
 
 
-class TTRBase(DeclarativeBase):
+class AuthorTextsBase(DeclarativeBase):
     pass

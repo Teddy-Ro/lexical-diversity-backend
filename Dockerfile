@@ -10,4 +10,4 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 
 COPY . /app/backend/
 
-CMD ["/bin/sh", "-c", "python -m alembic upgrade head && python -m data.ttr_seed && uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["/bin/sh", "-c", "python -m alembic upgrade head && python -m data.author_texts_seed && uvicorn author_texts_main:app --host 0.0.0.0 --port 8000"]

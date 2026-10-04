@@ -1,20 +1,18 @@
 services:
-  ttr-backend:
+  author_texts-backend:
     profiles: ["full"]
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ttr-backend
+    container_name: author_texts-backend
     depends_on:
       ttr-postgres:
         condition: service_healthy
-      ttr-minio:
-        condition: service_healthy
     environment:
-      TTR_DATABASE_URL: postgresql+asyncpg://ttr_user:ttr_password@ttr-postgres:5432/ttr_database
-      TTR_FRONTEND_ROOT: /app/frontend
-      TTR_MINIO_PUBLIC_URL: http://localhost:9000/ttr-media
-      TTR_CURRENT_USER_ID: 1
+      AUTHOR_TEXTS_DATABASE_URL: postgresql+asyncpg://author_texts_user:ttr_password@ttr-postgres:5432/author_texts_database
+      AUTHOR_TEXTS_FRONTEND_ROOT: /app/frontend
+      AUTHOR_TEXTS_MINIO_PUBLIC_URL: http://localhost:9000/author-texts-media
+      AUTHOR_TEXTS_CURRENT_USER_ID: 1
     ports:
       - "8000:8000"
     volumes:
@@ -24,15 +22,15 @@ services:
     image: postgres:16-alpine
     container_name: ttr-postgres
     environment:
-      POSTGRES_DB: ttr_database
-      POSTGRES_USER: ttr_user
+      POSTGRES_DB: author_texts_database
+      POSTGRES_USER: author_texts_user
       POSTGRES_PASSWORD: ttr_password
     ports:
       - "55432:5432"
     volumes:
-      - ttr-postgres-data:/var/lib/postgresql/data
+      - author_texts-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ttr_user -d ttr_database"]
+      test: ["CMD-SHELL", "pg_isready -U author_texts_user -d author_texts_database"]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -60,7 +58,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ttr-minio-data:/data
+      - author_texts-minio-data:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 3s
@@ -76,8 +74,11 @@ services:
       MC_HOST_local: http://minioadmin:minioadmin@ttr-minio:9000
     volumes:
       - ../lexical-diversity-frontend/minio-seed:/seed:ro
-    entrypoint: ["/bin/sh", "/seed/ttr_seed_minio.sh"]
+    entrypoint: ["/bin/sh", "/seed/author_texts_seed_minio.sh"]
 
 volumes:
-  ttr-postgres-data:
-  ttr-minio-data:
+  author_texts-postgres-data:
+    # Keep the existing data volume when renaming the application's services.
+    name: lexical-diversity-backend_ttr-postgres-data
+  author_texts-minio-data:
+    name: lexical-diversity-backend_ttr-minio-data

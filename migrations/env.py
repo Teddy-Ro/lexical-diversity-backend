@@ -2,17 +2,17 @@ from asyncio import run
 from logging.config import fileConfig
 
 from alembic import context
-from config.ttr_settings import get_ttr_settings
-from db.ttr_base import TTRBase
-from models import TTRLike, TTRText, TTRUser  # noqa: F401
+from config.author_texts_settings import get_author_texts_settings
+from db.author_texts_base import AuthorTextsBase
+from models import AuthorTextsLike, AuthorText, AuthorTextsUser  # noqa: F401
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_ttr_settings().ttr_database_url)
+config.set_main_option("sqlalchemy.url", get_author_texts_settings().author_texts_database_url)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-target_metadata = TTRBase.metadata
+target_metadata = AuthorTextsBase.metadata
 
 
 def run_migrations_offline() -> None:
