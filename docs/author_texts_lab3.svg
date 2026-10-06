@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1710" height="830" viewBox="0 0 1710 830">
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M1 1 L9 4 L1 7" fill="none" stroke="#606060"/></marker><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0H0V10" fill="none" stroke="#ededed" stroke-width=".5"/></pattern></defs>
+<rect width="1710" height="830" fill="white"/><rect width="1710" height="830" fill="url(#grid)"/>
+<path d="M20 222V210H200V222" fill="white" stroke="#555"/><rect x="20" y="222" width="210" height="578" fill="white" stroke="#555"/><text x="125" y="244" font-family="Arial" font-size="15" font-weight="bold" text-anchor="middle">Фронтенд</text>
+<path d="M460 32V20H640V32" fill="white" stroke="#555"/><rect x="460" y="32" width="710" height="768" fill="white" stroke="#555"/><text x="815" y="54" font-family="Arial" font-size="15" font-weight="bold" text-anchor="middle">Веб-сервис</text>
+<path d="M1220 32V20H1400V32" fill="white" stroke="#555"/><rect x="1220" y="32" width="450" height="348" fill="white" stroke="#555"/><text x="1445" y="54" font-family="Arial" font-size="15" font-weight="bold" text-anchor="middle">Модели</text>
+<path d="M1220 452V440H1400V452" fill="white" stroke="#555"/><rect x="1220" y="452" width="450" height="348" fill="white" stroke="#555"/><text x="1445" y="474" font-family="Arial" font-size="15" font-weight="bold" text-anchor="middle">База данных</text>
+<polyline points="185,75 265,75 265,210 348,210" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="185,90 255,90 255,615 348,615" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="215,300 270,300 270,210 348,210" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="215,410 275,410 275,210 348,210" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="215,525 280,525 280,210 348,210" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="215,680 275,680 275,615 348,615" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="480,210 366,210" fill="none" stroke="#777" stroke-width="1.2"/>
+<polyline points="480,615 366,615" fill="none" stroke="#777" stroke-width="1.2"/>
+<polyline points="1150,140 1190,140 1190,112 1435,112" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="1150,200 1240,200" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="1150,315 1198,315 1198,302 1435,302" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="1150,630 1205,630 1205,225 1240,225" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="1538,145 1538,495" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="1332,235 1332,600" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="1640,305 1658,305 1658,742 1640,742" fill="none" stroke="#777" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<polyline points="1425,620 1460,620 1460,560" fill="none" stroke="#777" stroke-width="1.2"/>
+<text x="1431" y="612" font-family="Arial" font-size="13">1</text><text x="1470" y="579" font-family="Arial" font-size="13">0..*</text>
+<polyline points="1425,650 1460,650 1460,710" fill="none" stroke="#777" stroke-width="1.2"/>
+<text x="1431" y="642" font-family="Arial" font-size="13">1</text><text x="1466" y="702" font-family="Arial" font-size="13">0..*</text>
+<polyline points="1605,560 1605,710" fill="none" stroke="#777" stroke-width="1.2"/>
+<text x="1611" y="579" font-family="Arial" font-size="13">1</text><text x="1611" y="702" font-family="Arial" font-size="13">0..*</text>
+<rect x="35" y="45" width="150" height="65" fill="white" stroke="#555"/><text x="110" y="68" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Postman</text>
+<rect x="35" y="265" width="180" height="70" fill="white" stroke="#555"/><text x="125" y="288" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Корпус</text>
+<rect x="35" y="375" width="180" height="70" fill="white" stroke="#555"/><text x="125" y="398" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Лента</text>
+<rect x="35" y="485" width="180" height="80" fill="white" stroke="#555"/><text x="125" y="508" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Добавление</text>
+<rect x="35" y="640" width="180" height="80" fill="white" stroke="#555"/><text x="125" y="663" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Вход / регистрация</text>
+<rect x="480" y="85" width="670" height="300" fill="white" stroke="#555"/><text x="815" y="108" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Домен авторских текстов — /api/author_texts</text>
+<line x1="480" y1="117" x2="1150" y2="117" stroke="#777"/>
+<text x="488" y="142" font-family="Arial" font-size="13">+GET /api/author_texts?min_text_length=…()</text>
+<text x="488" y="169" font-family="Arial" font-size="13">+GET /api/author_texts/feed()</text>
+<text x="488" y="196" font-family="Arial" font-size="13">+GET /api/author_texts/{author_text_id}?next=true()</text>
+<text x="488" y="223" font-family="Arial" font-size="13">+GET /api/author_texts/draft()</text>
+<text x="488" y="250" font-family="Arial" font-size="13">+POST /api/author_texts [multipart: название, фото, видео]()</text>
+<text x="488" y="277" font-family="Arial" font-size="13">+PUT /api/author_texts/{author_text_id}/publish [JSON]()</text>
+<text x="488" y="304" font-family="Arial" font-size="13">+DELETE /api/author_texts/{author_text_id}()</text>
+<text x="488" y="331" font-family="Arial" font-size="13">+POST /api/author_texts/{author_text_id}/like [value: 0 | 1]()</text>
+<rect x="480" y="545" width="670" height="180" fill="white" stroke="#555"/><text x="815" y="568" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">Домен пользователей — /api/author_texts_users</text>
+<line x1="480" y1="577" x2="1150" y2="577" stroke="#777"/>
+<text x="488" y="602" font-family="Arial" font-size="13">+POST /api/author_texts_users/register [username, password]()</text>
+<text x="488" y="629" font-family="Arial" font-size="13">+POST /api/author_texts_users/login [заглушка ЛР-3]()</text>
+<text x="488" y="656" font-family="Arial" font-size="13">+POST /api/author_texts_users/logout [заглушка ЛР-3]()</text>
+<circle cx="357.5" cy="210" r="9" fill="white" stroke="#555"/><text x="357.5" y="241" text-anchor="middle" font-family="Arial" font-size="13">API author_texts</text>
+<circle cx="357.5" cy="615" r="9" fill="white" stroke="#555"/><text x="357.5" y="646" text-anchor="middle" font-family="Arial" font-size="13">API users</text>
+<rect x="1435" y="80" width="205" height="65" fill="white" stroke="#555"/><text x="1537.5" y="103" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">AuthorText</text>
+<rect x="1240" y="170" width="185" height="65" fill="white" stroke="#555"/><text x="1332.5" y="193" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">AuthorTextsUser</text>
+<rect x="1435" y="270" width="205" height="65" fill="white" stroke="#555"/><text x="1537.5" y="293" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">AuthorTextsLike</text>
+<rect x="1435" y="495" width="205" height="65" fill="white" stroke="#555"/><text x="1537.5" y="518" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">author_texts</text>
+<rect x="1240" y="600" width="185" height="65" fill="white" stroke="#555"/><text x="1332.5" y="623" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">author_texts_users</text>
+<rect x="1435" y="710" width="205" height="65" fill="white" stroke="#555"/><text x="1537.5" y="733" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold">author_texts_text_likes</text>
+</svg>
