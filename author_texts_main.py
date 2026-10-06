@@ -2,6 +2,7 @@ from pathlib import Path
 
 import uvicorn
 from api.author_texts_handlers import author_texts_router
+from api.author_texts_api import author_texts_api
 from config.author_texts_settings import get_author_texts_settings
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +11,7 @@ AUTHOR_TEXTS_PROJECT_DIR = Path(__file__).resolve().parent
 AUTHOR_TEXTS_FRONTEND_DIR = Path(get_author_texts_settings().author_texts_frontend_root).resolve()
 
 author_texts_app = FastAPI(title="TTR — Type-Token Ratio")
+author_texts_app.mount("/api", author_texts_api)
 
 author_texts_app.mount(
     "/author_texts-assets",

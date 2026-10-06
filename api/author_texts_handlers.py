@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, sta
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from models.author_texts_models import AuthorText, AuthorTextStatus
+from services.author_texts_media import author_texts_media_url
 from services.author_texts_statistics import calculate_author_texts_statistics
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,9 +48,13 @@ def prepare_author_texts_text(author_texts_text: AuthorText) -> dict:
         "publication_year": author_texts_text.publication_year,
         "short_description": author_texts_text.short_description,
         "text_content": author_texts_text.text_content,
-        "author_texts_image_url": author_texts_text.author_texts_image_url
+        "author_texts_image_url": author_texts_media_url(
+            author_texts_text.author_texts_image_url
+        )
         or AUTHOR_TEXTS_DEFAULT_IMAGE_URL,
-        "author_texts_video_url": author_texts_text.author_texts_video_url
+        "author_texts_video_url": author_texts_media_url(
+            author_texts_text.author_texts_video_url
+        )
         or AUTHOR_TEXTS_DEFAULT_VIDEO_URL,
         "unique_token_count": author_texts_text.unique_token_count,
         "text_length": author_texts_text.text_length,

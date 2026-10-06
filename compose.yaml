@@ -12,6 +12,7 @@ services:
       AUTHOR_TEXTS_DATABASE_URL: postgresql+asyncpg://author_texts_user:ttr_password@ttr-postgres:5432/author_texts_database
       AUTHOR_TEXTS_FRONTEND_ROOT: /app/frontend
       AUTHOR_TEXTS_MINIO_PUBLIC_URL: http://localhost:9000/author-texts-media
+      AUTHOR_TEXTS_MINIO_ENDPOINT: ttr-minio:9000
       AUTHOR_TEXTS_CURRENT_USER_ID: 1
     ports:
       - "8000:8000"

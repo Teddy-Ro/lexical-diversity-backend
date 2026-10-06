@@ -13,6 +13,11 @@ class AuthorTextsSettings(BaseSettings):
     author_texts_frontend_root: Path = AUTHOR_TEXTS_PROJECT_DIR.parent / "lexical-diversity-frontend"
     author_texts_minio_public_url: str = "http://localhost:9000/author-texts-media"
     author_texts_current_user_id: int = 1
+    author_texts_minio_endpoint: str = "127.0.0.1:9000"
+    author_texts_minio_access_key: str = "minioadmin"
+    author_texts_minio_secret_key: str = "minioadmin"
+    author_texts_minio_secure: bool = False
+    author_texts_minio_bucket: str = "author-texts-media"
 
     model_config = SettingsConfigDict(
         env_file=AUTHOR_TEXTS_PROJECT_DIR / ".env",

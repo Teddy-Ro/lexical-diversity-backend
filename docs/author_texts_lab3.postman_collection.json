@@ -1,0 +1,279 @@
+{
+  "info": {
+    "name": "author_texts — Lab 3",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "10 requests for lab 3. User ID 1 is fixed. Choose image/video on request 03. Run against local demo data; request 09 soft-deletes only the newly created text."
+  },
+  "variable": [
+    {
+      "key": "author_texts_base_url",
+      "value": "http://127.0.0.1:8000/api"
+    },
+    {
+      "key": "author_text_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Корпус",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{author_texts_base_url}}/author_texts"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 — Фильтр по длине",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{author_texts_base_url}}/author_texts?min_text_length=5"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Length filter\", () => pm.response.json().forEach(x => pm.expect(x.text_length).to.be.at.least(5)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 — Создать с фото и видео",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{author_texts_base_url}}/author_texts",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "work_title",
+              "value": "Проверка TTR",
+              "type": "text"
+            },
+            {
+              "key": "author_texts_image",
+              "type": "file",
+              "src": "C:/Users/TED/Documents/BMSTU/BMSTU_C/RIP/lexical-diversity-frontend/public/media/author_texts_default.jpg"
+            },
+            {
+              "key": "author_texts_video",
+              "type": "file",
+              "src": "C:/Users/TED/Documents/BMSTU/BMSTU_C/RIP/lexical-diversity-frontend/public/media/author_texts_default.webm"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) { pm.collectionVariables.set(\"author_text_id\", pm.response.json().author_text_id); pm.collectionVariables.set(\"author_texts_keys\", JSON.stringify(Object.keys(pm.response.json()).sort())); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 — Собственный черновик",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{author_texts_base_url}}/author_texts/draft"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Null fields remain\", () => pm.expect(pm.response.json()).to.have.property(\"text_length\", null));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 — Опубликовать",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{author_texts_base_url}}/author_texts/{{author_text_id}}/publish",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"work_title\": \"Проверка TTR\",\n  \"author_name\": \"Тестовый автор\",\n  \"publication_year\": null,\n  \"short_description\": \"Текст для проверки расчёта.\",\n  \"text_content\": \"Мир, мир! Война и мир.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Stable fields\", () => pm.expect(Object.keys(pm.response.json()).sort()).to.eql(JSON.parse(pm.collectionVariables.get(\"author_texts_keys\"))));",
+              "pm.test(\"TTR\", () => pm.expect(pm.response.json().author_texts_ratio).to.eql(0.6));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 — Лента без ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{author_texts_base_url}}/author_texts/feed"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 — Следующая карточка",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{author_texts_base_url}}/author_texts/{{author_text_id}}?next=true"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 — Поставить лайк",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{author_texts_base_url}}/author_texts/{{author_text_id}}/like",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"value\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"One like\", () => pm.expect(pm.response.json().author_texts_like_count).to.eql(1));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 — Логически удалить",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{author_texts_base_url}}/author_texts/{{author_text_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Empty body\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 — Регистрация",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{author_texts_base_url}}/author_texts_users/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"author_texts_{{$guid}}\",\n  \"password\": \"author_texts_demo\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test(\"No password in response\", () => pm.expect(pm.response.json()).not.to.have.property(\"password_hash\"));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
