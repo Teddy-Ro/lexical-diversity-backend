@@ -8,7 +8,6 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Text,
     UniqueConstraint,
     text,
 )
@@ -41,8 +40,8 @@ class AuthorText(AuthorTextsBase):
             name="ck_author_texts_unique_token_count_nonnegative",
         ),
         CheckConstraint(
-            "publication_year IS NULL OR publication_year BETWEEN 1 AND 2100",
-            name="ck_author_texts_publication_year",
+            "unique_token_count <= text_length",
+            name="ck_author_texts_token_counts",
         ),
         Index(
             "uq_author_texts_one_draft_per_user",
@@ -54,10 +53,7 @@ class AuthorText(AuthorTextsBase):
 
     author_text_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     work_title: Mapped[str] = mapped_column(String(200), nullable=False)
-    author_name: Mapped[str | None] = mapped_column(String(200))
-    publication_year: Mapped[int | None] = mapped_column(Integer)
     short_description: Mapped[str | None] = mapped_column(String(500))
-    text_content: Mapped[str | None] = mapped_column(Text)
     author_texts_status: Mapped[AuthorTextStatus] = mapped_column(
         Enum(
             AuthorTextStatus,
@@ -68,8 +64,8 @@ class AuthorText(AuthorTextsBase):
         default=AuthorTextStatus.DRAFT,
         nullable=False,
     )
-    author_texts_image_url: Mapped[str | None] = mapped_column(String(500))
-    author_texts_video_url: Mapped[str | None] = mapped_column(String(500))
+    author_texts_image_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    author_texts_video_url: Mapped[str] = mapped_column(String(500), nullable=False)
     unique_token_count: Mapped[int | None] = mapped_column(Integer)
     text_length: Mapped[int | None] = mapped_column(Integer)
     creator_id: Mapped[int] = mapped_column(

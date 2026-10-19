@@ -56,7 +56,7 @@ class AuthorTextsApiContractTest(unittest.IsolatedAsyncioTestCase):
         ) as client:
             for path in ("/api/missing", "/api/author_texts/not-an-id"):
                 response = await client.get(path)
-                self.assertIn(response.status_code, (404, 422))
+                self.assertIn(response.status_code, (404, 405, 422))
                 self.assertEqual(response.content, b"")
             for path in ("login", "logout"):
                 response = await client.post(f"/api/author_texts_users/{path}")
@@ -66,6 +66,9 @@ class AuthorTextsApiContractTest(unittest.IsolatedAsyncioTestCase):
             response = await client.get("/api/openapi.json")
             self.assertEqual(response.status_code, 200)
             schema = response.json()
+            methods = [method for path in schema["paths"].values() for method in path if method in {"get", "post", "put", "delete"}]
+            self.assertEqual(len(methods), 10)
+            self.assertEqual(methods.count("get"), 3)
             fields = schema["components"]["schemas"]["AuthorTextsResponse"][
                 "properties"
             ]
@@ -136,10 +139,9 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
         )
         self.payload = {
             "work_title": "Тестовый текст",
-            "author_name": "Автор",
-            "publication_year": None,
             "short_description": "Проверка API",
-            "text_content": "Мир, мир! Война и мир.",
+            "text_length": 5,
+            "unique_token_count": 3,
         }
 
     async def asyncTearDown(self):
@@ -180,7 +182,8 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
         draft = await self.create()
         text_id = draft["author_text_id"]
         self.assertIsNone(draft["text_length"])
-        self.assertIsNone(draft["text_content"])
+        self.assertIsNone(draft["unique_token_count"])
+        self.assertEqual((draft["is_owner"], draft["is_liked"]), (1, 0))
         self.assertEqual(draft["author_texts_like_count"], 0)
         self.assertNotIn("author_texts_status", draft)
         row = await self.session.get(AuthorText, text_id)
@@ -193,7 +196,7 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(len(self.media.objects), 2)
         self.assertEqual(
-            (await self.client.get(f"/api/author_texts/{text_id}")).status_code, 404
+            (await self.client.get(f"/api/author_texts/feed?author_text_id={text_id}")).status_code, 404
         )
         self.assertEqual(
             (await self.client.get("/api/author_texts/draft")).json(), draft
@@ -213,7 +216,7 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
             ),
             (5, 3, 0.6),
         )
-        self.assertIsNone(published["publication_year"])
+        self.assertNotIn("publication_year", published)
         self.assertEqual(
             (
                 await self.client.put(
@@ -230,7 +233,7 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(
             (
-                await self.client.get(f"/api/author_texts/{text_id}?next=true")
+                await self.client.get(f"/api/author_texts/feed?author_text_id={text_id}&next=true")
             ).status_code,
             200,
         )
@@ -242,6 +245,7 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["author_texts_like_count"], count)
+            self.assertEqual(response.json()["is_liked"], value)
             actual = await self.session.scalar(
                 select(func.count())
                 .select_from(AuthorTextsLike)
@@ -253,7 +257,7 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
         await self.session.refresh(row)
         self.assertEqual(row.author_texts_status, AuthorTextStatus.DELETED)
         for method, path in (
-            ("get", f"/api/author_texts/{text_id}"),
+            ("get", f"/api/author_texts/feed?author_text_id={text_id}"),
             ("delete", f"/api/author_texts/{text_id}"),
         ):
             response = await getattr(self.client, method)(path)
@@ -281,8 +285,11 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
             "author_text_id",
             "creator_id",
             "author_texts_status",
-            "text_length",
-            "unique_token_count",
+            "is_owner",
+            "is_liked",
+            "text_content",
+            "author_name",
+            "publication_year",
         ):
             response = await self.client.put(
                 f"/api/author_texts/{text_id}/publish", json={**self.payload, field: 1}
@@ -327,7 +334,7 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
             f"/api/author_texts/{second['author_text_id']}/publish", json=self.payload
         )
         response = await self.client.get(
-            f"/api/author_texts/{first['author_text_id']}?next=true"
+            f"/api/author_texts/feed?author_text_id={first['author_text_id']}&next=true"
         )
         self.assertEqual(response.json()["author_text_id"], second["author_text_id"])
         first_published = await self.session.scalar(
@@ -336,13 +343,38 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
             )
         )
         response = await self.client.get(
-            f"/api/author_texts/{second['author_text_id']}?next=true"
+            f"/api/author_texts/feed?author_text_id={second['author_text_id']}&next=true"
         )
         self.assertEqual(response.json()["author_text_id"], first_published)
         self.assertEqual(
             (await self.client.get("/api/author_texts/feed")).json()["author_text_id"],
             first_published,
         )
+
+    async def test_personal_flags_and_manual_counts(self):
+        draft = await self.create()
+        text_id = draft["author_text_id"]
+        for invalid in (
+            {"text_length": 0}, {"unique_token_count": 0},
+            {"unique_token_count": 6}, {"text_length": -1},
+            {"text_length": "5"}, {"text_length": True},
+            {"text_length": 1.5}, {"text_length": 2147483648},
+        ):
+            response = await self.client.put(f"/api/author_texts/{text_id}/publish", json={**self.payload, **invalid})
+            self.assertEqual((response.status_code, response.content), (422, b""))
+        await self.client.put(f"/api/author_texts/{text_id}/publish", json=self.payload)
+        await self.client.post(f"/api/author_texts/{text_id}/like", json={"value": 1})
+        url = f"/api/author_texts/feed?author_text_id={text_id}"
+        own = (await self.client.get(url)).json()
+        self.assertEqual((own["is_owner"], own["is_liked"], own["author_texts_like_count"]), (1, 1, 1))
+        self.actor_id = self.other.author_texts_user_id
+        other = (await self.client.get(url)).json()
+        self.assertEqual((other["is_owner"], other["is_liked"], other["author_texts_like_count"]), (0, 0, 1))
+        corpus = (await self.client.get("/api/author_texts")).json()
+        self.assertEqual(next(item for item in corpus if item["author_text_id"] == text_id)["is_owner"], 0)
+        await self.client.post(f"/api/author_texts/{text_id}/like", json={"value": 1})
+        other = (await self.client.get(url)).json()
+        self.assertEqual((other["is_liked"], other["author_texts_like_count"]), (1, 2))
 
     async def test_upload_validation_and_compensation(self):
         files = self.files()

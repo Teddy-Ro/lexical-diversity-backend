@@ -70,6 +70,7 @@ class AuthorTextsFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(page.text.count('type="file"'), 2)
         self.assertIn(">Далее</button>", page.text)
         self.assertNotIn('name="text_content"', page.text)
+        self.assertNotIn('name="text_length"', page.text)
         self.assertNotIn("<script", page.text)
 
         response = await self.client.post(
@@ -89,9 +90,9 @@ class AuthorTextsFlowTest(unittest.IsolatedAsyncioTestCase):
         )
         text_id = draft.author_text_id
         self.assertEqual(draft.author_texts_status, AuthorTextStatus.DRAFT)
-        self.assertIsNone(draft.text_content)
+        self.assertIsNone(draft.unique_token_count)
         self.assertIsNone(draft.text_length)
-        self.assertIsNone(draft.author_texts_image_url)
+        self.assertEqual(draft.author_texts_image_url, "/author_texts-assets/media/author_texts_default.jpg")
         self.assertEqual(
             (await self.client.get(f"/author_texts/{text_id}")).status_code, 404
         )
@@ -110,6 +111,10 @@ class AuthorTextsFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('type="file"', page.text)
         self.assertIn(">Опубликовать</button>", page.text)
         self.assertNotIn("None", page.text)
+        self.assertIn('name="text_length"', page.text)
+        self.assertIn('name="unique_token_count"', page.text)
+        for removed_field in ("author_name", "publication_year", "text_content"):
+            self.assertNotIn(f'name="{removed_field}"', page.text)
         self.assertIn("/author_texts-assets/media/author_texts_default.jpg", page.text)
         self.assertIn("/author_texts-assets/media/author_texts_default.webm", page.text)
         for asset in ("author_texts_default.jpg", "author_texts_default.webm"):
@@ -119,13 +124,12 @@ class AuthorTextsFlowTest(unittest.IsolatedAsyncioTestCase):
 
         form = {
             "work_title": "Тестовый текст",
-            "author_name": "Автор",
-            "publication_year": "",
             "short_description": "Описание",
-            "text_content": "Мир, мир! Война и мир.",
+            "text_length": "5",
+            "unique_token_count": "3",
         }
         response = await self.client.post(
-            f"/author_texts/{text_id}/publish", data={**form, "text_content": " "}
+            f"/author_texts/{text_id}/publish", data={**form, "unique_token_count": "6"}
         )
         self.assertEqual(response.status_code, 422)
         response = await self.client.post(f"/author_texts/{text_id}/publish", data=form)
@@ -133,7 +137,6 @@ class AuthorTextsFlowTest(unittest.IsolatedAsyncioTestCase):
         await self.session.refresh(draft)
         self.assertEqual((draft.text_length, draft.unique_token_count), (5, 3))
         self.assertEqual(draft.author_texts_status, AuthorTextStatus.PUBLISHED)
-        self.assertIsNone(draft.publication_year)
         self.session.add(
             AuthorTextsLike(
                 researcher_id=author_texts_settings.author_texts_current_user_id,

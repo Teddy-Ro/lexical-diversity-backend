@@ -4,3 +4,6 @@ __pycache__/
 .env
 .DS_Store
 .pytest_cache/
+/docs/
+# Local diagram helper depends on files kept outside version control.
+/scripts/author_texts_diagrams.py

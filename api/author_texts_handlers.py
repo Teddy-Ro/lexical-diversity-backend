@@ -7,7 +7,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from models.author_texts_models import AuthorText, AuthorTextStatus
 from services.author_texts_media import author_texts_media_url
-from services.author_texts_statistics import calculate_author_texts_statistics
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -44,10 +43,7 @@ def prepare_author_texts_text(author_texts_text: AuthorText) -> dict:
     return {
         "author_text_id": author_texts_text.author_text_id,
         "work_title": author_texts_text.work_title,
-        "author_name": author_texts_text.author_name,
-        "publication_year": author_texts_text.publication_year,
         "short_description": author_texts_text.short_description,
-        "text_content": author_texts_text.text_content,
         "author_texts_image_url": author_texts_media_url(
             author_texts_text.author_texts_image_url
         )
@@ -67,13 +63,6 @@ def prepare_author_texts_text(author_texts_text: AuthorText) -> dict:
         "author_texts_ratio": f"{ratio:.3f}",
         "author_texts_like_count": len(author_texts_text.likes),
     }
-
-
-def read_author_texts_text_input(text_content: str) -> str:
-    normalized_text = text_content.strip()
-    if not normalized_text:
-        raise HTTPException(422, "Введите текст произведения")
-    return normalized_text
 
 
 @author_texts_router.get("/", include_in_schema=False)
@@ -193,6 +182,8 @@ async def create_author_texts_text(
         work_title=title,
         author_texts_status=AuthorTextStatus.DRAFT,
         creator_id=author_texts_settings.author_texts_current_user_id,
+        author_texts_image_url=AUTHOR_TEXTS_DEFAULT_IMAGE_URL,
+        author_texts_video_url=AUTHOR_TEXTS_DEFAULT_VIDEO_URL,
     )
     author_texts_session.add(author_texts_text)
     await author_texts_session.commit()
@@ -207,10 +198,9 @@ async def create_author_texts_text(
 async def publish_author_texts_text(
     author_text_id: int,
     work_title: str = Form(min_length=1, max_length=200),
-    author_name: str = Form(min_length=1, max_length=200),
-    publication_year: int | None = Form(default=None, ge=1, le=2100),
     short_description: str = Form(min_length=1, max_length=500),
-    text_content: str = Form(default=""),
+    text_length: int = Form(ge=1, le=2147483647),
+    unique_token_count: int = Form(ge=1, le=2147483647),
     author_texts_session: AsyncSession = Depends(get_author_texts_session),
 ):
     draft = await author_texts_session.scalar(
@@ -224,19 +214,14 @@ async def publish_author_texts_text(
         raise HTTPException(404, "Черновик не найден")
     if (
         not work_title.strip()
-        or not author_name.strip()
         or not short_description.strip()
+        or unique_token_count > text_length
     ):
-        raise HTTPException(422, "Заполните название, автора и краткое описание")
-    normalized_text = read_author_texts_text_input(text_content)
-    statistics = calculate_author_texts_statistics(normalized_text)
+        raise HTTPException(422)
     draft.work_title = work_title.strip()
-    draft.author_name = author_name.strip()
-    draft.publication_year = publication_year
     draft.short_description = short_description.strip()
-    draft.text_content = normalized_text
-    draft.text_length = statistics.text_length
-    draft.unique_token_count = statistics.unique_token_count
+    draft.text_length = text_length
+    draft.unique_token_count = unique_token_count
     draft.author_texts_status = AuthorTextStatus.PUBLISHED
     await author_texts_session.commit()
     return RedirectResponse(

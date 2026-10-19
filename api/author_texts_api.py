@@ -86,9 +86,10 @@ AuthorTextsServiceDependency = Annotated[
 )
 async def list_author_texts(
     service: AuthorTextsServiceDependency,
+    actor: AuthorTextsActor,
     min_text_length: int | None = Query(None, ge=0),
 ):
-    return await service.list_author_texts(min_text_length)
+    return await service.list_author_texts(min_text_length, actor.author_texts_user_id)
 
 
 @author_texts_api_router.get(
@@ -103,21 +104,15 @@ async def get_author_texts_draft(
 
 
 @author_texts_api_router.get(
-    "/{author_text_id}",
-    response_model=AuthorTextsResponse,
-    summary="Карточка по ID или следующая",
-)
-@author_texts_api_router.get(
-    "/feed", response_model=AuthorTextsResponse, summary="Первая карточка ленты"
+    "/feed", response_model=AuthorTextsResponse, summary="Лента: первая, по ID или следующая карточка"
 )
 async def get_author_texts_feed(
     service: AuthorTextsServiceDependency,
-    author_text_id: int | None = None,
+    actor: AuthorTextsActor,
+    author_text_id: int | None = Query(None, ge=1),
     next_text: bool = Query(False, alias="next"),
 ):
-    if author_text_id is not None and author_text_id < 1:
-        raise HTTPException(422)
-    return await service.get_author_texts_feed(author_text_id, next_text)
+    return await service.get_author_texts_feed(author_text_id, next_text, actor.author_texts_user_id)
 
 
 @author_texts_api_router.post(

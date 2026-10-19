@@ -18,10 +18,9 @@ from starlette.concurrency import run_in_threadpool
 
 from services.author_texts_media import AuthorTextsMedia, author_texts_media_url
 from services.author_texts_passwords import hash_author_texts_password
-from services.author_texts_statistics import calculate_author_texts_statistics
 
 
-def serialize_author_texts(author_text: AuthorText) -> AuthorTextsResponse:
+def serialize_author_texts(author_text: AuthorText, user_id: int) -> AuthorTextsResponse:
     ratio = None
     if (
         author_text.text_length is not None
@@ -35,10 +34,7 @@ def serialize_author_texts(author_text: AuthorText) -> AuthorTextsResponse:
     return AuthorTextsResponse(
         author_text_id=author_text.author_text_id,
         work_title=author_text.work_title,
-        author_name=author_text.author_name,
-        publication_year=author_text.publication_year,
         short_description=author_text.short_description,
-        text_content=author_text.text_content,
         author_texts_image_url=author_texts_media_url(
             author_text.author_texts_image_url
         ),
@@ -49,6 +45,8 @@ def serialize_author_texts(author_text: AuthorText) -> AuthorTextsResponse:
         text_length=author_text.text_length,
         author_texts_ratio=ratio,
         author_texts_like_count=len(author_text.likes),
+        is_owner=int(author_text.creator_id == user_id),
+        is_liked=int(any(like.researcher_id == user_id for like in author_text.likes)),
     )
 
 
@@ -57,13 +55,13 @@ class AuthorTextsService:
         self.session = session
         self.repository = AuthorTextsRepository(session)
 
-    async def list_author_texts(self, min_text_length: int | None):
+    async def list_author_texts(self, min_text_length: int | None, user_id: int):
         return [
-            serialize_author_texts(item)
+            serialize_author_texts(item, user_id)
             for item in await self.repository.list_published(min_text_length)
         ]
 
-    async def get_author_texts_feed(self, author_text_id: int | None, next_text: bool):
+    async def get_author_texts_feed(self, author_text_id: int | None, next_text: bool, user_id: int):
         if author_text_id is None:
             selected = await self.repository.first_published()
         else:
@@ -75,13 +73,13 @@ class AuthorTextsService:
                 )
         if selected is None:
             raise HTTPException(404)
-        return serialize_author_texts(selected)
+        return serialize_author_texts(selected, user_id)
 
     async def get_author_texts_draft(self, user_id: int):
         draft = await self.repository.draft(user_id)
         if draft is None:
             raise HTTPException(404)
-        return serialize_author_texts(draft)
+        return serialize_author_texts(draft, user_id)
 
     async def create_author_texts(
         self,
@@ -112,7 +110,7 @@ class AuthorTextsService:
             )
             self.session.add(draft)
             await self.session.flush()
-            response = serialize_author_texts(draft)
+            response = serialize_author_texts(draft, user_id)
             await self.session.commit()
             return response
         except Exception:
@@ -127,15 +125,10 @@ class AuthorTextsService:
         draft = await self.repository.draft(user_id, lock=True)
         if draft is None or draft.author_text_id != author_text_id:
             raise HTTPException(404)
-        statistics = calculate_author_texts_statistics(payload.text_content)
-        if statistics.text_length == 0:
-            raise HTTPException(422)
         for name, value in payload.model_dump().items():
             setattr(draft, name, value)
-        draft.text_length = statistics.text_length
-        draft.unique_token_count = statistics.unique_token_count
         draft.author_texts_status = AuthorTextStatus.PUBLISHED
-        response = serialize_author_texts(draft)
+        response = serialize_author_texts(draft, user_id)
         await self.session.commit()
         return response
 
@@ -156,12 +149,11 @@ class AuthorTextsService:
         if value == 1 and like is None:
             author_text.likes.append(AuthorTextsLike(researcher_id=user_id))
         elif value == 0 and like is not None:
-            # Delete only the link; reload the collection after flushing.
             await self.session.delete(like)
             await self.session.flush()
         await self.session.flush()
         author_text = await self.repository.published(author_text_id)
-        response = serialize_author_texts(author_text)
+        response = serialize_author_texts(author_text, user_id)
         await self.session.commit()
         return response
 
