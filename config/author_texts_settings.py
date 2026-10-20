@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 AUTHOR_TEXTS_PROJECT_DIR = Path(__file__).resolve().parents[1]
 
@@ -12,12 +13,15 @@ class AuthorTextsSettings(BaseSettings):
     )
     author_texts_frontend_root: Path = AUTHOR_TEXTS_PROJECT_DIR.parent / "lexical-diversity-frontend"
     author_texts_minio_public_url: str = "http://localhost:9000/author-texts-media"
-    author_texts_current_user_id: int = 1
     author_texts_minio_endpoint: str = "127.0.0.1:9000"
     author_texts_minio_access_key: str = "minioadmin"
     author_texts_minio_secret_key: str = "minioadmin"
     author_texts_minio_secure: bool = False
     author_texts_minio_bucket: str = "author-texts-media"
+    author_texts_redis_url: str = "redis://127.0.0.1:6379/0"
+    author_texts_session_cookie: str = "author_texts_session"
+    author_texts_session_ttl: int = Field(default=3600, ge=1, le=604800)
+    author_texts_cookie_secure: bool = False
 
     model_config = SettingsConfigDict(
         env_file=AUTHOR_TEXTS_PROJECT_DIR / ".env",

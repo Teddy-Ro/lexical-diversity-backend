@@ -1,8 +1,10 @@
 from enum import StrEnum
+from datetime import datetime
 
 from db.author_texts_base import AuthorTextsBase
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     Enum,
     ForeignKey,
     Index,
@@ -10,6 +12,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     text,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -71,6 +74,8 @@ class AuthorText(AuthorTextsBase):
     creator_id: Mapped[int] = mapped_column(
         ForeignKey("author_texts_users.author_texts_user_id", ondelete="RESTRICT"), nullable=False
     )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     creator: Mapped[AuthorTextsUser] = relationship(back_populates="texts")
     likes: Mapped[list["AuthorTextsLike"]] = relationship(back_populates="text")

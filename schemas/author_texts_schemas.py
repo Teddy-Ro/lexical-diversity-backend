@@ -18,6 +18,10 @@ class AuthorTextsCreate(AuthorTextsInput):
 
 
 class AuthorTextsPublish(AuthorTextsInput):
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {
+        "work_title": "Проверка TTR", "short_description": "Пример авторского текста",
+        "text_length": 5, "unique_token_count": 3,
+    }})
     work_title: AuthorTextsTitle
     short_description: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
@@ -37,6 +41,9 @@ class AuthorTextsLikeInput(AuthorTextsInput):
 
 
 class AuthorTextsRegistration(AuthorTextsInput):
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {
+        "username": "author_texts_lab4", "password": "author_texts_demo",
+    }})
     username: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)
     ]
@@ -46,6 +53,14 @@ class AuthorTextsRegistration(AuthorTextsInput):
 class AuthorTextsUserResponse(BaseModel):
     author_texts_user_id: int
     username: str
+
+
+class AuthorTextsLogin(AuthorTextsInput):
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {
+        "username": "author_texts_lab4", "password": "author_texts_demo",
+    }})
+    username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    password: Annotated[str, StringConstraints(min_length=1, max_length=128)]
 
 
 class AuthorTextsResponse(BaseModel):

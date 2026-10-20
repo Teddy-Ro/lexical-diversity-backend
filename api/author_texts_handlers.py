@@ -2,12 +2,12 @@ from pathlib import Path
 
 from config.author_texts_settings import get_author_texts_settings
 from db.author_texts_session import get_author_texts_session
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from models.author_texts_models import AuthorText, AuthorTextStatus
 from services.author_texts_media import author_texts_media_url
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -127,125 +127,9 @@ async def show_author_texts_grid(
     )
 
 
-@author_texts_router.get("/author_texts/add", response_class=HTMLResponse)
-async def show_author_texts_add(
-    request: Request,
-    author_texts_session: AsyncSession = Depends(get_author_texts_session),
-):
-    draft = await author_texts_session.scalar(
-        select(AuthorText)
-        .where(
-            AuthorText.creator_id == author_texts_settings.author_texts_current_user_id,
-            AuthorText.author_texts_status == AuthorTextStatus.DRAFT,
-        )
-        .options(selectinload(AuthorText.likes))
-    )
-    first_published_id = await author_texts_session.scalar(
-        select(AuthorText.author_text_id)
-        .where(AuthorText.author_texts_status == AuthorTextStatus.PUBLISHED)
-        .order_by(AuthorText.author_text_id)
-        .limit(1)
-    )
-    return author_texts_templates.TemplateResponse(
-        request=request,
-        name="author_texts_add.html",
-        context={
-            "title": "TTR — добавление текста",
-            "author_texts_active_add": True,
-            "author_texts_text": prepare_author_texts_text(draft) if draft else None,
-            "author_texts_default_image_url": AUTHOR_TEXTS_DEFAULT_IMAGE_URL,
-            "author_texts_default_video_url": AUTHOR_TEXTS_DEFAULT_VIDEO_URL,
-            "author_texts_feed_text_id": first_published_id,
-        },
-    )
-
-
-@author_texts_router.post("/author_texts/drafts")
-async def create_author_texts_text(
-    work_title: str = Form(min_length=1, max_length=200),
-    author_texts_session: AsyncSession = Depends(get_author_texts_session),
-):
-    existing_draft = await author_texts_session.scalar(
-        select(AuthorText.author_text_id).where(
-            AuthorText.creator_id == author_texts_settings.author_texts_current_user_id,
-            AuthorText.author_texts_status == AuthorTextStatus.DRAFT,
-        )
-    )
-    if existing_draft:
-        return RedirectResponse(
-            "/author_texts/add", status_code=status.HTTP_303_SEE_OTHER
-        )
-    title = work_title.strip()
-    if not title:
-        raise HTTPException(422, "Введите название произведения")
-    author_texts_text = AuthorText(
-        work_title=title,
-        author_texts_status=AuthorTextStatus.DRAFT,
-        creator_id=author_texts_settings.author_texts_current_user_id,
-        author_texts_image_url=AUTHOR_TEXTS_DEFAULT_IMAGE_URL,
-        author_texts_video_url=AUTHOR_TEXTS_DEFAULT_VIDEO_URL,
-    )
-    author_texts_session.add(author_texts_text)
-    await author_texts_session.commit()
-    await author_texts_session.refresh(author_texts_text)
-    return RedirectResponse(
-        "/author_texts/add",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
-
-
-@author_texts_router.post("/author_texts/{author_text_id}/publish")
-async def publish_author_texts_text(
-    author_text_id: int,
-    work_title: str = Form(min_length=1, max_length=200),
-    short_description: str = Form(min_length=1, max_length=500),
-    text_length: int = Form(ge=1, le=2147483647),
-    unique_token_count: int = Form(ge=1, le=2147483647),
-    author_texts_session: AsyncSession = Depends(get_author_texts_session),
-):
-    draft = await author_texts_session.scalar(
-        select(AuthorText).where(
-            AuthorText.author_text_id == author_text_id,
-            AuthorText.creator_id == author_texts_settings.author_texts_current_user_id,
-            AuthorText.author_texts_status == AuthorTextStatus.DRAFT,
-        )
-    )
-    if draft is None:
-        raise HTTPException(404, "Черновик не найден")
-    if (
-        not work_title.strip()
-        or not short_description.strip()
-        or unique_token_count > text_length
-    ):
-        raise HTTPException(422)
-    draft.work_title = work_title.strip()
-    draft.short_description = short_description.strip()
-    draft.text_length = text_length
-    draft.unique_token_count = unique_token_count
-    draft.author_texts_status = AuthorTextStatus.PUBLISHED
-    await author_texts_session.commit()
-    return RedirectResponse(
-        f"/author_texts/{draft.author_text_id}", status_code=status.HTTP_303_SEE_OTHER
-    )
-
-
-@author_texts_router.post("/author_texts/{author_text_id}/delete")
-async def delete_author_texts_text(
-    author_text_id: int,
-    author_texts_session: AsyncSession = Depends(get_author_texts_session),
-):
-    result = await author_texts_session.execute(
-        text(
-            "UPDATE author_texts SET author_texts_status = 'deleted' "
-            "WHERE author_text_id = :author_text_id AND author_texts_status = 'published'"
-        ),
-        {"author_text_id": author_text_id},
-    )
-    if result.rowcount == 0:
-        await author_texts_session.rollback()
-        raise HTTPException(404, "Опубликованный текст не найден")
-    await author_texts_session.commit()
-    return RedirectResponse("/author_texts", status_code=status.HTTP_303_SEE_OTHER)
+@author_texts_router.get("/author_texts/add", include_in_schema=False)
+async def author_texts_add_api_documentation():
+    return RedirectResponse("/api/docs")
 
 
 @author_texts_router.get("/author_texts/{author_text_id}", response_class=HTMLResponse)

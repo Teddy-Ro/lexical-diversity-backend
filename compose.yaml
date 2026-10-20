@@ -8,16 +8,32 @@ services:
     depends_on:
       ttr-postgres:
         condition: service_healthy
+      author_texts-redis:
+        condition: service_healthy
     environment:
       AUTHOR_TEXTS_DATABASE_URL: postgresql+asyncpg://author_texts_user:ttr_password@ttr-postgres:5432/author_texts_database
       AUTHOR_TEXTS_FRONTEND_ROOT: /app/frontend
       AUTHOR_TEXTS_MINIO_PUBLIC_URL: http://localhost:9000/author-texts-media
       AUTHOR_TEXTS_MINIO_ENDPOINT: ttr-minio:9000
-      AUTHOR_TEXTS_CURRENT_USER_ID: 1
+      AUTHOR_TEXTS_REDIS_URL: redis://author_texts-redis:6379/0
     ports:
       - "8000:8000"
     volumes:
       - ../lexical-diversity-frontend:/app/frontend:ro
+
+  author_texts-redis:
+    image: redis:7-alpine
+    container_name: author_texts-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - author_texts-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   ttr-postgres:
     image: postgres:16-alpine
@@ -78,6 +94,7 @@ services:
     entrypoint: ["/bin/sh", "/seed/author_texts_seed_minio.sh"]
 
 volumes:
+  author_texts-redis-data:
   author_texts-postgres-data:
     # Keep the existing data volume when renaming the application's services.
     name: lexical-diversity-backend_ttr-postgres-data

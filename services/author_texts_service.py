@@ -1,4 +1,5 @@
 from fastapi import HTTPException, UploadFile
+from datetime import datetime, timezone
 from models.author_texts_models import (
     AuthorText,
     AuthorTextsLike,
@@ -11,16 +12,18 @@ from schemas.author_texts_schemas import (
     AuthorTextsRegistration,
     AuthorTextsResponse,
     AuthorTextsUserResponse,
+    AuthorTextsLogin,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from services.author_texts_media import AuthorTextsMedia, author_texts_media_url
-from services.author_texts_passwords import hash_author_texts_password
+from services.author_texts_passwords import hash_author_texts_password, verify_author_texts_password
 
 
-def serialize_author_texts(author_text: AuthorText, user_id: int) -> AuthorTextsResponse:
+def serialize_author_texts(author_text: AuthorText, user_id: int | None) -> AuthorTextsResponse:
     ratio = None
     if (
         author_text.text_length is not None
@@ -55,13 +58,13 @@ class AuthorTextsService:
         self.session = session
         self.repository = AuthorTextsRepository(session)
 
-    async def list_author_texts(self, min_text_length: int | None, user_id: int):
+    async def list_author_texts(self, min_text_length: int | None, user_id: int | None):
         return [
             serialize_author_texts(item, user_id)
             for item in await self.repository.list_published(min_text_length)
         ]
 
-    async def get_author_texts_feed(self, author_text_id: int | None, next_text: bool, user_id: int):
+    async def get_author_texts_feed(self, author_text_id: int | None, next_text: bool, user_id: int | None):
         if author_text_id is None:
             selected = await self.repository.first_published()
         else:
@@ -128,6 +131,7 @@ class AuthorTextsService:
         for name, value in payload.model_dump().items():
             setattr(draft, name, value)
         draft.author_texts_status = AuthorTextStatus.PUBLISHED
+        draft.published_at = datetime.now(timezone.utc)
         response = serialize_author_texts(draft, user_id)
         await self.session.commit()
         return response
@@ -161,6 +165,16 @@ class AuthorTextsService:
 class AuthorTextsUsersService:
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def authenticate_author_texts_user(self, payload: AuthorTextsLogin):
+        user = await self.session.scalar(select(AuthorTextsUser).where(
+            AuthorTextsUser.username == payload.username
+        ))
+        password_hash = user.password_hash if user else "pbkdf2_sha256$600000$author_texts_dummy$" + "0" * 64
+        valid = await run_in_threadpool(verify_author_texts_password, payload.password, password_hash)
+        if user is None or not valid:
+            raise HTTPException(401)
+        return AuthorTextsUserResponse(author_texts_user_id=user.author_texts_user_id, username=user.username)
 
     async def register_author_texts_user(self, payload: AuthorTextsRegistration):
         user = AuthorTextsUser(

@@ -1,4 +1,4 @@
-"""Lab 3 REST API. HTML routes remain separate for the lab 2 demonstration."""
+"""Lab 4 REST API with Redis sessions and cookie authentication."""
 
 import logging
 from typing import Annotated
@@ -25,6 +25,7 @@ from schemas.author_texts_schemas import (
     AuthorTextsRegistration,
     AuthorTextsResponse,
     AuthorTextsUserResponse,
+    AuthorTextsLogin,
 )
 from services.author_texts_media import AuthorTextsMedia, get_author_texts_media
 from services.author_texts_service import AuthorTextsService, AuthorTextsUsersService
@@ -34,9 +35,22 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from api.author_texts_dependencies import (
     AuthorTextsCurrentUser,
     get_current_author_texts_user,
+    require_author_texts_user,
+    AuthorTextsSessionCookie,
+)
+from config.author_texts_settings import get_author_texts_settings
+from services.author_texts_sessions import (
+    AuthorTextsSessions, get_author_texts_sessions,
+    author_texts_api_lifespan, check_author_texts_origin,
 )
 
-author_texts_api = FastAPI(title="Author texts — ЛР-3", version="3.0.0")
+author_texts_api = FastAPI(
+    title="Author texts — ЛР-4", version="4.0.0",
+    description="Сессии Redis и HttpOnly cookie. Сначала выполните регистрацию и login здесь, в Swagger. Браузер отправляет cookie автоматически. Корпус и лента доступны гостю.",
+    lifespan=author_texts_api_lifespan,
+    dependencies=[Depends(check_author_texts_origin)],
+    swagger_ui_parameters={"withCredentials": True},
+)
 author_texts_api_router = APIRouter(prefix="/author_texts", tags=["author_texts"])
 author_texts_users_router = APIRouter(
     prefix="/author_texts_users", tags=["author_texts_users"]
@@ -72,7 +86,13 @@ def get_author_texts_users_service(
 
 
 AuthorTextsActor = Annotated[
-    AuthorTextsCurrentUser, Depends(get_current_author_texts_user)
+    AuthorTextsCurrentUser, Depends(require_author_texts_user)
+]
+AuthorTextsOptionalActor = Annotated[
+    AuthorTextsCurrentUser | None, Depends(get_current_author_texts_user)
+]
+AuthorTextsSessionsDependency = Annotated[
+    AuthorTextsSessions, Depends(get_author_texts_sessions)
 ]
 AuthorTextsServiceDependency = Annotated[
     AuthorTextsService, Depends(get_author_texts_service)
@@ -86,10 +106,10 @@ AuthorTextsServiceDependency = Annotated[
 )
 async def list_author_texts(
     service: AuthorTextsServiceDependency,
-    actor: AuthorTextsActor,
+    actor: AuthorTextsOptionalActor,
     min_text_length: int | None = Query(None, ge=0),
 ):
-    return await service.list_author_texts(min_text_length, actor.author_texts_user_id)
+    return await service.list_author_texts(min_text_length, actor.author_texts_user_id if actor else None)
 
 
 @author_texts_api_router.get(
@@ -108,11 +128,11 @@ async def get_author_texts_draft(
 )
 async def get_author_texts_feed(
     service: AuthorTextsServiceDependency,
-    actor: AuthorTextsActor,
+    actor: AuthorTextsOptionalActor,
     author_text_id: int | None = Query(None, ge=1),
     next_text: bool = Query(False, alias="next"),
 ):
-    return await service.get_author_texts_feed(author_text_id, next_text, actor.author_texts_user_id)
+    return await service.get_author_texts_feed(author_text_id, next_text, actor.author_texts_user_id if actor else None)
 
 
 @author_texts_api_router.post(
@@ -205,17 +225,47 @@ async def register_author_texts_user(
 
 
 @author_texts_users_router.post(
-    "/login", response_class=Response, summary="Вход — заглушка ЛР-3"
+    "/login", response_model=AuthorTextsUserResponse, summary="Аутентификация и создание сессии Redis",
+    responses={200: {"description": "Пользователь и Set-Cookie: author_texts_session; HttpOnly; SameSite=Lax; Path=/api"}},
 )
-async def login_author_texts_user():
-    return Response(status_code=200)
+async def login_author_texts_user(
+    payload: AuthorTextsLogin,
+    response: Response,
+    sessions: AuthorTextsSessionsDependency,
+    session_id: AuthorTextsSessionCookie,
+    service: AuthorTextsUsersService = Depends(get_author_texts_users_service),
+):
+    user = await service.authenticate_author_texts_user(payload)
+    new_session = await sessions.create(user.author_texts_user_id)
+    try:
+        await sessions.destroy(session_id)
+    except Exception:
+        await sessions.destroy(new_session)
+        raise
+    settings = get_author_texts_settings()
+    response.set_cookie(
+        key=settings.author_texts_session_cookie, value=new_session,
+        max_age=settings.author_texts_session_ttl, path="/api",
+        httponly=True, secure=settings.author_texts_cookie_secure, samesite="lax",
+    )
+    return user
 
 
 @author_texts_users_router.post(
-    "/logout", response_class=Response, summary="Выход — заглушка ЛР-3"
+    "/logout", response_class=Response, summary="Деавторизация: удалить сессию и cookie"
 )
-async def logout_author_texts_user():
-    return Response(status_code=200)
+async def logout_author_texts_user(
+    session_id: AuthorTextsSessionCookie,
+    sessions: AuthorTextsSessionsDependency,
+):
+    await sessions.destroy(session_id)
+    response = Response(status_code=200)
+    response.delete_cookie(
+        get_author_texts_settings().author_texts_session_cookie, path="/api",
+        httponly=True, secure=get_author_texts_settings().author_texts_cookie_secure,
+        samesite="lax",
+    )
+    return response
 
 
 author_texts_api.include_router(author_texts_api_router)
@@ -228,10 +278,14 @@ def get_author_texts_openapi():
     schema = author_texts_openapi()
     for path in schema["paths"].values():
         for operation in path.values():
-            for code in ("404", "409", "422", "503"):
+            for code in ("401", "403", "404", "409", "422", "503"):
                 operation["responses"][code] = {
                     "description": "HTTP error; empty response body"
                 }
+    for path in ("/author_texts", "/author_texts/feed"):
+        schema["paths"][path]["get"]["security"] = [{}, {"AuthorTextsSession": []}]
+    schema["paths"]["/author_texts_users/login"]["post"]["security"] = []
+    schema["paths"]["/author_texts_users/logout"]["post"]["security"] = [{}, {"AuthorTextsSession": []}]
     return schema
 
 

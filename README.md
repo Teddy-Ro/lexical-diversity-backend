@@ -1,12 +1,61 @@
-# Author texts — лабораторная работа №3
+# Author texts — лабораторная работа №4
 
 Сервис карточек авторских текстов для расчёта TTR. Пользователь вводит количество
 всех токенов и уникальных токенов; сервер вычисляет их отношение. Исходный текст,
 автор произведения и год публикации не хранятся.
 
-Ветка: `lab3-author_texts-api`. Основной контракт ЛР-3: `/api`.
+Ветка: `lab4-author_texts-auth`. Основной контракт ЛР-4: `/api`.
 Swagger: `http://127.0.0.1:8000/api/docs`, OpenAPI: `/api/openapi.json`.
-Сохранённый SSR-интерфейс находится по `/author_texts` и не входит в десять API-методов.
+Публичные SSR-страницы корпуса и ленты сохранены по `/author_texts`. Старые форма добавления и POST-маршруты отключены; личные действия выполняются через API.
+
+## Сессии Redis и права доступа
+
+Публичны: GET корпуса и ленты, POST регистрации и входа.
+GET черновика, POST создания/лайка, PUT публикации и DELETE требуют действующей сессии.
+Выход идемпотентен: без сессии тоже возвращает 200 и удаляет cookie.
+Без входа защищённые методы дают 401 с пустым телом. Чужая карточка для изменения — 404.
+Неправильный пароль или неизвестное имя — одинаковый 401; пароль и хеш не возвращаются.
+Системные поля creator_id, created_at, published_at, статус и ID с клиента запрещены.
+
+1. Зарегистрировать пользователя через POST /api/author_texts_users/register.
+2. Выполнить POST /api/author_texts_users/login с JSON username/password.
+3. Сервер проверяет PBKDF2-хеш и создаёт случайный 256-битный ID сессии.
+4. В Redis хранится ключ author_texts:session:<ID> со значением ID пользователя и TTL.
+5. Cookie author_texts_session устанавливается с HttpOnly, SameSite=Lax, Path=/api и Max-Age=3600.
+6. Последующие запросы получают пользователя из Redis. При повторном входе старая cookie-сессия отзывается.
+7. Logout удаляет ключ Redis. Копия старой cookie после выхода больше не работает.
+
+В локальном HTTP Secure=false; для HTTPS установить AUTHOR_TEXTS_COOKIE_SECURE=true.
+Параметры среды: AUTHOR_TEXTS_REDIS_URL (по умолчанию redis://127.0.0.1:6379/0),
+AUTHOR_TEXTS_SESSION_TTL (3600 секунд), AUTHOR_TEXTS_SESSION_COOKIE (author_texts_session).
+В контейнере используется redis://author_texts-redis:6379/0.
+Origin изменяющих запросов должен совпадать с адресом API, когда браузер его передаёт.
+Клиенты Postman без Origin поддерживаются. Redis недоступен — 503, без подмены пользователя константой.
+У гостя is_owner/is_liked равны 0; у вошедшего пользователя вычисляются по его ID.
+Недействительная/истёкшая cookie при чтении трактуется как гость.
+
+### Вход через Swagger
+
+Открыть http://127.0.0.1:8000/api/docs в инкогнито.
+Выполнить register с уникальным username и паролем, затем login.
+HttpOnly cookie сохраняется браузером автоматически; вручную вводить её в Authorize не требуется.
+Использовать один и тот же хост во всех запросах: не смешивать localhost и 127.0.0.1.
+В DevTools → Application → Cookies видна author_texts_session.
+Для Postman скопировать её как заголовок Cookie: author_texts_session=<значение>.
+Проверить корпус без cookie и с cookie, затем публикацию без входа (401) и после входа (200).
+Старые демонстрационные аккаунты могут иметь неизвестный пароль; использовать новую регистрацию.
+
+### Показ Redis
+
+```powershell
+docker exec -it author_texts-redis redis-cli
+SCAN 0 MATCH author_texts:session:* COUNT 100
+GET author_texts:session:<ID_из_cookie>
+TTL author_texts:session:<ID_из_cookie>
+```
+
+GET возвращает ID вошедшего пользователя, TTL — оставшиеся секунды.
+После logout ключ отсутствует (GET → nil, TTL → -2). Хеши паролей остаются только в PostgreSQL.
 
 ## Десять HTTP-методов
 
@@ -23,8 +72,8 @@ Card — постоянная схема карточки, описанная д
 | 6 | DELETE | /api/author_texts/{author_text_id} | Логическое удаление своего опубликованного текста; path author_text_id: integer | 200, пустое тело |
 | 7 | POST | /api/author_texts/{author_text_id}/like | Лайк: JSON value: integer 0 или 1; path author_text_id: integer | 200, Card |
 | 8 | POST | /api/author_texts_users/register | JSON username: string 1–80, password: string 8–128 | 201, author_texts_user_id: integer, username: string |
-| 9 | POST | /api/author_texts_users/login | Аутентификация: заглушка ЛР-3, без входных данных | 200, пустое тело |
-| 10 | POST | /api/author_texts_users/logout | Деавторизация: заглушка ЛР-3, без входных данных | 200, пустое тело |
+| 9 | POST | /api/author_texts_users/login | JSON username/password; создать сессию Redis и cookie | 200, author_texts_user_id: integer, username: string; Set-Cookie |
+| 10 | POST | /api/author_texts_users/logout | Удалить текущую сессию Redis и cookie | 200, пустое тело |
 
 Лента без ID возвращает первую опубликованную карточку. С ID — указанную карточку,
 с ID и next=true — следующую; после последней происходит переход к первой.
@@ -86,6 +135,7 @@ DELETE переводит собственную published-карточку в d
 POST like с value=1 устанавливает лайк, value=0 снимает; повтор не создаёт дубликаты.
 
 HTTP-код и статус draft/published/deleted в JSON не включаются. Ошибки имеют пустое тело:
+401 — требуется вход/неверный пароль; 403 — недопустимый Origin;
 404 — нет доступного объекта; 409 — второй черновик или занятое имя пользователя;
 422 — некорректные данные; 503 — недоступность хранилища; 500 — непредвиденная ошибка.
 Неверный HTTP-метод даёт 405.
@@ -105,11 +155,15 @@ HTTP-код и статус draft/published/deleted в JSON не включаю�
 | unique_token_count | integer | да | Уникальные токены, обязательно при публикации |
 | text_length | integer | да | Все токены, обязательно при публикации |
 | creator_id | integer | нет | FK → author_texts_users.author_texts_user_id, назначает сервер |
+| created_at | timestamp with time zone | нет | Дата создания, серверный DEFAULT now() |
+| published_at | timestamp with time zone | да | Дата формирования/публикации, назначается сервером при PUT |
 
 CHECK: числа неотрицательны и unique_token_count ≤ text_length.
 API публикации дополнительно запрещает нули. Частичный UNIQUE по creator_id
 при status=draft обеспечивает не более одного черновика на пользователя.
 Миграция 20261018_05 удаляет author_name, publication_year, text_content.
+Миграция 20261019_06 добавляет системные даты. Для старых строк created_at означает время миграции;
+историческую дату публикации восстановить нельзя, поэтому published_at для них остаётся NULL.
 Для прежних строк без медиа устанавливаются ссылки на стандартные SSR-файлы;
 новые API-карточки требуют реальной загрузки обоих файлов.
 
@@ -136,7 +190,8 @@ API публикации дополнительно запрещает нули.
 ## Код для защиты
 
 - api/author_texts_api.py — десять методов, HTTP-коды, зависимости.
-- api/author_texts_dependencies.py — singleton с пользователем 1.
+- api/author_texts_dependencies.py — получение необязательного/обязательного пользователя из сессии.
+- services/author_texts_sessions.py — Redis, TTL, cookie-сессии, проверка Origin.
 - schemas/author_texts_schemas.py — входные поля, валидация чисел, постоянный ответ.
 - services/author_texts_service.py — бизнес-правила и serialize_author_texts:
   len(author_text.likes), сравнение creator_id и проверка researcher_id для признаков.
@@ -145,9 +200,9 @@ API публикации дополнительно запрещает нули.
 - services/author_texts_media.py — MinIO.
 - services/author_texts_passwords.py — хеширование пароля.
 
-Регистрация не переключает singleton. Вход/выход не выдают cookie и не создают сессию.
-В ЛР-4 зависимость текущего пользователя заменяется настоящей авторизацией.
-Старые изменяющие SSR-маршруты перед включением авторизации нужно закрыть или отключить.
+Регистрация сохраняет пользователя и хеш пароля; для входа вызывается login.
+Получение текущего пользователя выполняется через cookie и Redis, константного пользователя в API нет.
+Старые SSR-маршруты изменения и просмотра чужого черновика не подключены к приложению.
 
 ## Проверка API в Postman
 
@@ -156,7 +211,7 @@ API публикации дополнительно запрещает нули.
 Базовый адрес API: `http://127.0.0.1:8000/api`.
 Для POST создания выбрать реальные файлы в Body → form-data.
 ID из ответа создания использовать в запросах публикации, лайка и удаления.
-У пользователя 1 не должно быть второго черновика: существующий сначала получить
+У вошедшего пользователя не должно быть второго черновика: существующий сначала получить
 через GET /draft и опубликовать через PUT /{author_text_id}/publish.
 В GET /feed параметр author_text_id выбирает карточку, next=true — следующую.
 
@@ -184,7 +239,7 @@ docker compose --profile full up -d --build
 Либо запустить инфраструктуру и backend отдельно:
 
 ```powershell
-docker compose up -d ttr-postgres ttr-adminer ttr-minio ttr-minio-seed
+docker compose up -d ttr-postgres ttr-adminer ttr-minio ttr-minio-seed author_texts-redis
 .venv/Scripts/python.exe -m pip install -r requirements-dev.txt
 .venv/Scripts/python.exe -m alembic upgrade head
 .venv/Scripts/python.exe -m data.author_texts_seed
@@ -198,9 +253,8 @@ Adminer: http://127.0.0.1:8080; система PostgreSQL, сервер ttr-post
 демонстрационные учётные данные minioadmin / minioadmin.
 Это локальные учебные пароли, не настройки для публичного развёртывания.
 
-HTML-форма использует SSR без JS: до «Далее» название и два выбора файлов;
-после — описание и два числовых поля. Сохранённый SSR-процесс ЛР-2 не загружает
-файлы, использует стандартные медиа. Реальная загрузка ЛР-3 выполняется через API.
+SSR оставлен для публичного просмотра. Добавление и изменение демонстрируются через Swagger/Postman;
+исходная HTML-форма ЛР-2 сохранена в её ветке. Реальные фото и видео загружаются через API.
 
 ## Тесты
 
@@ -225,3 +279,7 @@ $env:AUTHOR_TEXTS_TEST_SQLITE='1'
 валидация чисел, создание/публикация/удаление, лайки, права владельца, переходы ленты,
 регистрация, компенсация загрузок и отсутствие JS в HTML. SQLite не заменяет
 проверку PostgreSQL и реального MinIO.
+
+ЛР-4 дополнительно проверяет настоящие сессии Redis: гостя, двух пользователей, TTL,
+смену ID сессии при входе, отзыв при выходе, повторное использование старой cookie,
+чужую публикацию/удаление, Origin и отсутствие обхода через старые SSR-методы.

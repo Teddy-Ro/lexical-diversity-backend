@@ -1,4 +1,5 @@
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 import uvicorn
 from api.author_texts_handlers import author_texts_router
@@ -10,7 +11,17 @@ from fastapi.staticfiles import StaticFiles
 AUTHOR_TEXTS_PROJECT_DIR = Path(__file__).resolve().parent
 AUTHOR_TEXTS_FRONTEND_DIR = Path(get_author_texts_settings().author_texts_frontend_root).resolve()
 
-author_texts_app = FastAPI(title="TTR — Type-Token Ratio")
+@asynccontextmanager
+async def author_texts_lifespan(app):
+    # Mounted sub-applications don't receive lifespan automatically.
+    async with author_texts_api.router.lifespan_context(author_texts_api):
+        yield
+
+
+author_texts_app = FastAPI(
+    title="TTR — Type-Token Ratio", lifespan=author_texts_lifespan,
+    docs_url=None, redoc_url=None, openapi_url=None,
+)
 author_texts_app.mount("/api", author_texts_api)
 
 author_texts_app.mount(
@@ -18,6 +29,7 @@ author_texts_app.mount(
     StaticFiles(directory=AUTHOR_TEXTS_FRONTEND_DIR / "public"),
     name="author_texts-assets",
 )
+# Personal operations use the authenticated API; SSR only renders public reads.
 author_texts_app.include_router(author_texts_router)
 
 app = author_texts_app

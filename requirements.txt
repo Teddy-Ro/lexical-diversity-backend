@@ -8,3 +8,4 @@ alembic==1.19.2
 asyncpg==0.30.0
 pydantic-settings==2.11.0
 minio==7.2.18
+redis==6.4.0

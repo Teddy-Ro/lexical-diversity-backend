@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 
 from db.author_texts_session import AuthorTextsSessionFactory
 from models.author_texts_models import AuthorTextsLike, AuthorText, AuthorTextStatus, AuthorTextsUser
@@ -64,6 +65,7 @@ async def seed_author_texts_database() -> None:
                     work_title=title,
                     short_description=description,
                     author_texts_status=AuthorTextStatus.PUBLISHED,
+                    published_at=datetime.now(timezone.utc),
                     author_texts_image_url=f"http://localhost:9000/author-texts-media/{media_name}.jpg",
                     author_texts_video_url=f"http://localhost:9000/author-texts-media/{media_name}.webm",
                     text_length=length,

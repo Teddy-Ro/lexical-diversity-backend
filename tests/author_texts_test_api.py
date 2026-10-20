@@ -45,12 +45,7 @@ class AuthorTextsMemoryMedia(AuthorTextsMedia):
 
 
 class AuthorTextsApiContractTest(unittest.IsolatedAsyncioTestCase):
-    async def test_singleton(self):
-        first = get_current_author_texts_user()
-        self.assertIs(first, get_current_author_texts_user())
-        self.assertEqual(first.author_texts_user_id, 1)
-
-    async def test_empty_errors_and_stubs(self):
+    async def test_empty_errors_and_auth_contract(self):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
@@ -58,17 +53,21 @@ class AuthorTextsApiContractTest(unittest.IsolatedAsyncioTestCase):
                 response = await client.get(path)
                 self.assertIn(response.status_code, (404, 405, 422))
                 self.assertEqual(response.content, b"")
-            for path in ("login", "logout"):
-                response = await client.post(f"/api/author_texts_users/{path}")
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.content, b"")
-                self.assertNotIn("set-cookie", response.headers)
+            response = await client.post("/api/author_texts_users/login")
+            self.assertEqual((response.status_code, response.content), (422, b""))
+            response = await client.post("/api/author_texts_users/logout")
+            self.assertEqual((response.status_code, response.content), (200, b""))
+            self.assertIn("Max-Age=0", response.headers["set-cookie"])
             response = await client.get("/api/openapi.json")
             self.assertEqual(response.status_code, 200)
             schema = response.json()
             methods = [method for path in schema["paths"].values() for method in path if method in {"get", "post", "put", "delete"}]
             self.assertEqual(len(methods), 10)
             self.assertEqual(methods.count("get"), 3)
+            cookie_scheme = schema["components"]["securitySchemes"]["AuthorTextsSession"]
+            self.assertEqual((cookie_scheme["in"], cookie_scheme["name"]), ("cookie", "author_texts_session"))
+            self.assertIn({}, schema["paths"]["/author_texts"]["get"]["security"])
+            self.assertNotIn({}, schema["paths"]["/author_texts/draft"]["get"]["security"])
             fields = schema["components"]["schemas"]["AuthorTextsResponse"][
                 "properties"
             ]
