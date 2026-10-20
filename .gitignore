@@ -7,3 +7,11 @@ __pycache__/
 /docs/
 # Local diagram helper depends on files kept outside version control.
 /scripts/author_texts_diagrams.py
+/reports/
+/screenshots/
+*.doc
+*.docx
+*.pdf
+*.mdj
+*.drawio
+~$*
