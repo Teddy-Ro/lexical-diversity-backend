@@ -5,6 +5,7 @@ from db.author_texts_session import AuthorTextsSessionFactory
 from models.author_texts_models import AuthorTextsLike, AuthorText, AuthorTextStatus, AuthorTextsUser
 from services.author_texts_passwords import hash_author_texts_password
 from sqlalchemy import select
+from data.author_texts_attributes_seed import seed_author_texts_attributes
 
 AUTHOR_TEXTS_SEED_TEXTS = [
     (
@@ -41,7 +42,9 @@ AUTHOR_TEXTS_SEED_TEXTS = [
 async def seed_author_texts_database() -> None:
     async with AuthorTextsSessionFactory() as session:
         if await session.scalar(select(AuthorTextsUser.author_texts_user_id).limit(1)):
-            print("TTR seed skipped: database already contains users.")
+            await seed_author_texts_attributes(session)
+            await session.commit()
+            print("Author texts: existing users preserved; attribute examples are ready.")
             return
         users = [
             AuthorTextsUser(
@@ -103,6 +106,7 @@ async def seed_author_texts_database() -> None:
             AuthorTextsLike(researcher_id=user.author_texts_user_id, author_text_id=texts[0].author_text_id)
             for user in users[:8]
         )
+        await seed_author_texts_attributes(session)
         await session.commit()
         print("TTR seed completed.")
 

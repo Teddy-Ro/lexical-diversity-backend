@@ -1,3 +1,9 @@
-from models.author_texts_models import AuthorTextsLike, AuthorText, AuthorTextStatus, AuthorTextsUser
+from models.author_texts_models import (
+    AuthorText, AuthorTextStatus, AuthorTextsUser, AuthorTextsLike,
+    AuthorTextsAttribute, AuthorTextsAttributeValue,
+)
 
-__all__ = ["AuthorTextsLike", "AuthorText", "AuthorTextStatus", "AuthorTextsUser"]
+__all__ = [
+    "AuthorText", "AuthorTextStatus", "AuthorTextsUser", "AuthorTextsLike",
+    "AuthorTextsAttribute", "AuthorTextsAttributeValue",
+]

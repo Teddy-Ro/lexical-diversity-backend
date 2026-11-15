@@ -415,6 +415,116 @@ class AuthorTextsApiFlowTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual((response.status_code, response.content), (409, b""))
 
+    async def test_attributes_publish_read_and_preserve_on_soft_delete(self):
+        from models import AuthorTextsAttribute, AuthorTextsAttributeValue
+
+        language = AuthorTextsAttribute(attribute_name=f"language_{uuid4().hex}")
+        genre = AuthorTextsAttribute(attribute_name=f"genre_{uuid4().hex}")
+        self.session.add_all([language, genre])
+        await self.session.flush()
+        draft = await self.create()
+        self.assertEqual(draft["attributes"], [])
+        text_id = draft["author_text_id"]
+        payload = {**self.payload, "attributes": [
+            {"author_texts_attribute_id": genre.author_texts_attribute_id, "attribute_value": "Роман"},
+            {"author_texts_attribute_id": language.author_texts_attribute_id, "attribute_value": " Русский "},
+        ]}
+        response = await self.client.put(f"/api/author_texts/{text_id}/publish", json=payload)
+        self.assertEqual(response.status_code, 200, response.text)
+        expected = [
+            {"author_texts_attribute_id": language.author_texts_attribute_id,
+             "attribute_name": language.attribute_name, "attribute_value": "Русский"},
+            {"author_texts_attribute_id": genre.author_texts_attribute_id,
+             "attribute_name": genre.attribute_name, "attribute_value": "Роман"},
+        ]
+        self.assertEqual(response.json()["attributes"], expected)
+        self.assertEqual(set(response.json()), set(draft))
+        self.session.expire_all()
+        feed = await self.client.get(f"/api/author_texts/feed?author_text_id={text_id}")
+        self.assertEqual(feed.json()["attributes"], expected)
+        corpus = (await self.client.get("/api/author_texts")).json()
+        self.assertEqual(next(row for row in corpus if row["author_text_id"] == text_id)["attributes"], expected)
+        liked = await self.client.post(f"/api/author_texts/{text_id}/like", json={"value": 1})
+        self.assertEqual(liked.json()["attributes"], expected)
+        self.assertEqual((await self.client.delete(f"/api/author_texts/{text_id}")).status_code, 200)
+        count = await self.session.scalar(select(func.count()).select_from(AuthorTextsAttributeValue).where(
+            AuthorTextsAttributeValue.author_text_id == text_id,
+        ))
+        self.assertEqual(count, 2)
+        self.assertEqual((await self.client.get(f"/api/author_texts/feed?author_text_id={text_id}")).status_code, 404)
+
+    async def test_attribute_validation_leaves_draft_unchanged(self):
+        from models import AuthorTextsAttribute
+
+        attribute = AuthorTextsAttribute(attribute_name=f"language_{uuid4().hex}")
+        self.session.add(attribute)
+        await self.session.flush()
+        attribute_id = attribute.author_texts_attribute_id
+        text_id = (await self.create())["author_text_id"]
+        valid = {"author_texts_attribute_id": attribute_id, "attribute_value": "Русский"}
+        for attributes in (
+            [valid, valid],
+            [{**valid, "attribute_value": "   "}],
+            [{**valid, "attribute_value": "x" * 501}],
+            [{**valid, "author_texts_attribute_id": True}],
+            [{**valid, "author_texts_attribute_id": "1"}],
+            [{**valid, "author_texts_attribute_id": 2147483647}],
+            [{**valid, "author_text_id": text_id}],
+            [{"author_texts_attribute_id": number, "attribute_value": "test"} for number in range(1, 52)],
+        ):
+            response = await self.client.put(f"/api/author_texts/{text_id}/publish", json={
+                **self.payload, "attributes": attributes,
+            })
+            self.assertEqual((response.status_code, response.content), (422, b""))
+            draft = await self.client.get("/api/author_texts/draft")
+            self.assertEqual(draft.status_code, 200)
+            self.assertEqual(draft.json()["attributes"], [])
+            self.assertIsNone(draft.json()["text_length"])
+        self.actor_id = self.other.author_texts_user_id
+        response = await self.client.put(f"/api/author_texts/{text_id}/publish", json={
+            **self.payload, "attributes": [valid],
+        })
+        self.assertEqual(response.status_code, 404)
+
+    async def test_attribute_reuse_and_database_constraints(self):
+        from models import AuthorTextsAttribute, AuthorTextsAttributeValue
+        from sqlalchemy import delete
+        from sqlalchemy.exc import IntegrityError
+
+        attribute = AuthorTextsAttribute(attribute_name=f"genre_{uuid4().hex}")
+        self.session.add(attribute)
+        await self.session.flush()
+        attribute_id = attribute.author_texts_attribute_id
+        text_ids = []
+        for value in ("Роман", "Поэма"):
+            text_id = (await self.create())["author_text_id"]
+            text_ids.append(text_id)
+            response = await self.client.put(f"/api/author_texts/{text_id}/publish", json={
+                **self.payload, "attributes": [{"author_texts_attribute_id": attribute_id, "attribute_value": value}],
+            })
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["attributes"][0]["attribute_value"], value)
+        with self.assertRaises(IntegrityError):
+            async with self.session.begin_nested():
+                self.session.add(AuthorTextsAttributeValue(
+                    author_text_id=text_ids[0], author_texts_attribute_id=attribute_id, attribute_value="duplicate",
+                ))
+                await self.session.flush()
+        with self.assertRaises(IntegrityError):
+            async with self.session.begin_nested():
+                self.session.add(AuthorTextsAttribute(attribute_name="   "))
+                await self.session.flush()
+        if not self.sqlite:
+            with self.assertRaises(IntegrityError):
+                async with self.session.begin_nested():
+                    await self.session.execute(delete(AuthorTextsAttribute).where(
+                        AuthorTextsAttribute.author_texts_attribute_id == attribute_id,
+                    ))
+        count = await self.session.scalar(select(func.count()).select_from(AuthorTextsAttributeValue).where(
+            AuthorTextsAttributeValue.author_texts_attribute_id == attribute_id,
+        ))
+        self.assertEqual(count, 2)
+
     @unittest.skipUnless(
         os.getenv("AUTHOR_TEXTS_RUN_MINIO_TESTS") == "1", "Real MinIO upload"
     )

@@ -79,6 +79,12 @@ class AuthorText(AuthorTextsBase):
 
     creator: Mapped[AuthorTextsUser] = relationship(back_populates="texts")
     likes: Mapped[list["AuthorTextsLike"]] = relationship(back_populates="text")
+    attribute_values: Mapped[list["AuthorTextsAttributeValue"]] = relationship(
+        back_populates="author_text",
+        order_by="AuthorTextsAttributeValue.author_texts_attribute_id",
+        lazy="raise",
+        passive_deletes=True,
+    )
 
 
 class AuthorTextsLike(AuthorTextsBase):
@@ -99,3 +105,36 @@ class AuthorTextsLike(AuthorTextsBase):
 
     researcher: Mapped[AuthorTextsUser] = relationship(back_populates="likes")
     text: Mapped[AuthorText] = relationship(back_populates="likes")
+
+
+class AuthorTextsAttribute(AuthorTextsBase):
+    __tablename__ = "author_texts_attributes"
+    __table_args__ = (
+        CheckConstraint("length(trim(attribute_name)) > 0", name="ck_author_texts_attribute_name"),
+    )
+
+    author_texts_attribute_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    attribute_name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    values: Mapped[list["AuthorTextsAttributeValue"]] = relationship(
+        back_populates="attribute", passive_deletes=True,
+    )
+
+
+class AuthorTextsAttributeValue(AuthorTextsBase):
+    __tablename__ = "author_texts_attribute_values"
+    __table_args__ = (
+        UniqueConstraint("author_text_id", "author_texts_attribute_id", name="uq_author_texts_text_attribute"),
+        CheckConstraint("length(trim(attribute_value)) > 0", name="ck_author_texts_attribute_value"),
+        Index("ix_author_texts_attribute_values_attribute", "author_texts_attribute_id"),
+    )
+
+    author_texts_attribute_value_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    author_text_id: Mapped[int] = mapped_column(
+        ForeignKey("author_texts.author_text_id", ondelete="RESTRICT"), nullable=False,
+    )
+    author_texts_attribute_id: Mapped[int] = mapped_column(
+        ForeignKey("author_texts_attributes.author_texts_attribute_id", ondelete="RESTRICT"), nullable=False,
+    )
+    attribute_value: Mapped[str] = mapped_column(String(500), nullable=False)
+    author_text: Mapped[AuthorText] = relationship(back_populates="attribute_values")
+    attribute: Mapped[AuthorTextsAttribute] = relationship(back_populates="values", lazy="raise")

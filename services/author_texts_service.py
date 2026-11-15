@@ -5,6 +5,7 @@ from models.author_texts_models import (
     AuthorTextsLike,
     AuthorTextStatus,
     AuthorTextsUser,
+    AuthorTextsAttributeValue,
 )
 from repositories.author_texts_repository import AuthorTextsRepository
 from schemas.author_texts_schemas import (
@@ -13,6 +14,7 @@ from schemas.author_texts_schemas import (
     AuthorTextsResponse,
     AuthorTextsUserResponse,
     AuthorTextsLogin,
+    AuthorTextsAttributeResponse,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
@@ -50,6 +52,14 @@ def serialize_author_texts(author_text: AuthorText, user_id: int | None) -> Auth
         author_texts_like_count=len(author_text.likes),
         is_owner=int(author_text.creator_id == user_id),
         is_liked=int(any(like.researcher_id == user_id for like in author_text.likes)),
+        attributes=[
+            AuthorTextsAttributeResponse(
+                author_texts_attribute_id=item.author_texts_attribute_id,
+                attribute_name=item.attribute.attribute_name,
+                attribute_value=item.attribute_value,
+            )
+            for item in sorted(author_text.attribute_values, key=lambda value: value.author_texts_attribute_id)
+        ],
     )
 
 
@@ -110,6 +120,7 @@ class AuthorTextsService:
                 author_texts_image_url=uploaded[0],
                 author_texts_video_url=uploaded[1],
                 likes=[],
+                attribute_values=[],
             )
             self.session.add(draft)
             await self.session.flush()
@@ -128,10 +139,23 @@ class AuthorTextsService:
         draft = await self.repository.draft(user_id, lock=True)
         if draft is None or draft.author_text_id != author_text_id:
             raise HTTPException(404)
-        for name, value in payload.model_dump().items():
+        attribute_ids = [item.author_texts_attribute_id for item in payload.attributes]
+        definitions = await self.repository.attributes_by_ids(attribute_ids)
+        if set(attribute_ids) != set(definitions):
+            raise HTTPException(422)
+        for name, value in payload.model_dump(exclude={"attributes"}).items():
             setattr(draft, name, value)
+        draft.attribute_values = [
+            AuthorTextsAttributeValue(
+                author_texts_attribute_id=item.author_texts_attribute_id,
+                attribute=definitions[item.author_texts_attribute_id],
+                attribute_value=item.attribute_value,
+            )
+            for item in payload.attributes
+        ]
         draft.author_texts_status = AuthorTextStatus.PUBLISHED
         draft.published_at = datetime.now(timezone.utc)
+        await self.session.flush()
         response = serialize_author_texts(draft, user_id)
         await self.session.commit()
         return response

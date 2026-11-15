@@ -1,6 +1,9 @@
 """Only ORM queries; each feed query selects at most one text."""
 
-from models.author_texts_models import AuthorText, AuthorTextStatus, AuthorTextsUser
+from models.author_texts_models import (
+    AuthorText, AuthorTextStatus, AuthorTextsUser,
+    AuthorTextsAttribute, AuthorTextsAttributeValue,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -14,7 +17,10 @@ class AuthorTextsRepository:
         return (
             select(AuthorText)
             .where(AuthorText.author_texts_status == AuthorTextStatus.PUBLISHED)
-            .options(selectinload(AuthorText.likes))
+            .options(
+                selectinload(AuthorText.likes),
+                selectinload(AuthorText.attribute_values).joinedload(AuthorTextsAttributeValue.attribute),
+            )
             .execution_options(populate_existing=True)
         )
 
@@ -45,7 +51,10 @@ class AuthorTextsRepository:
                 AuthorText.creator_id == user_id,
                 AuthorText.author_texts_status == AuthorTextStatus.DRAFT,
             )
-            .options(selectinload(AuthorText.likes))
+            .options(
+                selectinload(AuthorText.likes),
+                selectinload(AuthorText.attribute_values).joinedload(AuthorTextsAttributeValue.attribute),
+            )
             .execution_options(populate_existing=True)
         )
         if lock:
@@ -59,3 +68,13 @@ class AuthorTextsRepository:
         if lock:
             query = query.with_for_update()
         return await self.session.scalar(query)
+
+    async def attributes_by_ids(self, attribute_ids: list[int]):
+        if not attribute_ids:
+            return {}
+        attributes = await self.session.scalars(
+            select(AuthorTextsAttribute)
+            .where(AuthorTextsAttribute.author_texts_attribute_id.in_(attribute_ids))
+            .with_for_update(read=True)
+        )
+        return {item.author_texts_attribute_id: item for item in attributes}
