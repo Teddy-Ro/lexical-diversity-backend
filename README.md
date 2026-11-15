@@ -96,6 +96,27 @@ Cookie `author_texts_session`: HttpOnly, SameSite=Lax, Path=/api.
 сессии. Текущий пользователь определяется по Redis, а не константой и не полями
 запроса. При выходе сессия отзывается и cookie удаляется.
 
+### Чтение Redis через Lua
+
+`scripts/author_texts_session_get.lua` читает одну сессию, а
+`scripts/author_texts_sessions_list.lua` — переданный список сессий.
+Ответ содержит `session_key`, `user_id` и `ttl_seconds`. Данные и срок действия
+не изменяются. Логины хранятся в PostgreSQL; в Redis находятся ID пользователей.
+
+Запуск из каталога бэкенда в PowerShell:
+
+```powershell
+docker cp ./scripts/author_texts_session_get.lua author_texts-redis:/tmp/author_texts_session_get.lua
+docker cp ./scripts/author_texts_sessions_list.lua author_texts-redis:/tmp/author_texts_sessions_list.lua
+docker exec author_texts-redis redis-cli --raw --eval /tmp/author_texts_session_get.lua author_texts:session:SESSION_ID
+$authorTextsSessionKeys = @(docker exec author_texts-redis redis-cli --scan --pattern 'author_texts:session:*')
+docker exec author_texts-redis redis-cli --raw --eval /tmp/author_texts_sessions_list.lua @authorTextsSessionKeys
+```
+
+Вместо `SESSION_ID` подставляется полное значение cookie без `author_texts_session=`.
+Ключи передаются в Lua через `KEYS`. Отсутствующая сессия возвращает `user_id: null`
+и `ttl_seconds: -2`; при отсутствии активных сессий список равен `[]`.
+
 ## Таблицы PostgreSQL
 
 ### author_texts
