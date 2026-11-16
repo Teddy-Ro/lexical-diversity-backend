@@ -1,8 +1,11 @@
 """Only ORM queries; each feed query selects at most one text."""
 
 from models.author_texts_models import (
-    AuthorText, AuthorTextStatus, AuthorTextsUser,
-    AuthorTextsAttribute, AuthorTextsAttributeValue,
+    AuthorText,
+    AuthorTextsAttribute,
+    AuthorTextsAttributeValue,
+    AuthorTextStatus,
+    AuthorTextsUser,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +22,9 @@ class AuthorTextsRepository:
             .where(AuthorText.author_texts_status == AuthorTextStatus.PUBLISHED)
             .options(
                 selectinload(AuthorText.likes),
-                selectinload(AuthorText.attribute_values).joinedload(AuthorTextsAttributeValue.attribute),
+                selectinload(AuthorText.attribute_values).joinedload(
+                    AuthorTextsAttributeValue.attribute
+                ),
             )
             .execution_options(populate_existing=True)
         )
@@ -53,7 +58,9 @@ class AuthorTextsRepository:
             )
             .options(
                 selectinload(AuthorText.likes),
-                selectinload(AuthorText.attribute_values).joinedload(AuthorTextsAttributeValue.attribute),
+                selectinload(AuthorText.attribute_values).joinedload(
+                    AuthorTextsAttributeValue.attribute
+                ),
             )
             .execution_options(populate_existing=True)
         )

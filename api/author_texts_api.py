@@ -3,6 +3,7 @@
 import logging
 from typing import Annotated
 
+from config.author_texts_settings import get_author_texts_settings
 from db.author_texts_session import get_author_texts_session
 from fastapi import (
     APIRouter,
@@ -21,31 +22,33 @@ from pydantic import ValidationError
 from schemas.author_texts_schemas import (
     AuthorTextsCreate,
     AuthorTextsLikeInput,
+    AuthorTextsLogin,
     AuthorTextsPublish,
     AuthorTextsRegistration,
     AuthorTextsResponse,
     AuthorTextsUserResponse,
-    AuthorTextsLogin,
 )
 from services.author_texts_media import AuthorTextsMedia, get_author_texts_media
 from services.author_texts_service import AuthorTextsService, AuthorTextsUsersService
+from services.author_texts_sessions import (
+    AuthorTextsSessions,
+    author_texts_api_lifespan,
+    check_author_texts_origin,
+    get_author_texts_sessions,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.author_texts_dependencies import (
     AuthorTextsCurrentUser,
+    AuthorTextsSessionCookie,
     get_current_author_texts_user,
     require_author_texts_user,
-    AuthorTextsSessionCookie,
-)
-from config.author_texts_settings import get_author_texts_settings
-from services.author_texts_sessions import (
-    AuthorTextsSessions, get_author_texts_sessions,
-    author_texts_api_lifespan, check_author_texts_origin,
 )
 
 author_texts_api = FastAPI(
-    title="Author texts — ЛР-4", version="4.0.0",
+    title="Author texts — ЛР-4",
+    version="4.0.0",
     description="Сессии Redis и HttpOnly cookie. Сначала выполните регистрацию и login здесь, в Swagger. Браузер отправляет cookie автоматически. Корпус и лента доступны гостю.",
     lifespan=author_texts_api_lifespan,
     dependencies=[Depends(check_author_texts_origin)],
@@ -85,9 +88,7 @@ def get_author_texts_users_service(
     return AuthorTextsUsersService(session)
 
 
-AuthorTextsActor = Annotated[
-    AuthorTextsCurrentUser, Depends(require_author_texts_user)
-]
+AuthorTextsActor = Annotated[AuthorTextsCurrentUser, Depends(require_author_texts_user)]
 AuthorTextsOptionalActor = Annotated[
     AuthorTextsCurrentUser | None, Depends(get_current_author_texts_user)
 ]
@@ -109,7 +110,9 @@ async def list_author_texts(
     actor: AuthorTextsOptionalActor,
     min_text_length: int | None = Query(None, ge=0),
 ):
-    return await service.list_author_texts(min_text_length, actor.author_texts_user_id if actor else None)
+    return await service.list_author_texts(
+        min_text_length, actor.author_texts_user_id if actor else None
+    )
 
 
 @author_texts_api_router.get(
@@ -124,7 +127,9 @@ async def get_author_texts_draft(
 
 
 @author_texts_api_router.get(
-    "/feed", response_model=AuthorTextsResponse, summary="Лента: первая, по ID или следующая карточка"
+    "/feed",
+    response_model=AuthorTextsResponse,
+    summary="Лента: первая, по ID или следующая карточка",
 )
 async def get_author_texts_feed(
     service: AuthorTextsServiceDependency,
@@ -132,7 +137,9 @@ async def get_author_texts_feed(
     author_text_id: int | None = Query(None, ge=1),
     next_text: bool = Query(False, alias="next"),
 ):
-    return await service.get_author_texts_feed(author_text_id, next_text, actor.author_texts_user_id if actor else None)
+    return await service.get_author_texts_feed(
+        author_text_id, next_text, actor.author_texts_user_id if actor else None
+    )
 
 
 @author_texts_api_router.post(
@@ -225,8 +232,14 @@ async def register_author_texts_user(
 
 
 @author_texts_users_router.post(
-    "/login", response_model=AuthorTextsUserResponse, summary="Аутентификация и создание сессии Redis",
-    responses={200: {"description": "Пользователь и Set-Cookie: author_texts_session; HttpOnly; SameSite=Lax; Path=/api"}},
+    "/login",
+    response_model=AuthorTextsUserResponse,
+    summary="Аутентификация и создание сессии Redis",
+    responses={
+        200: {
+            "description": "Пользователь и Set-Cookie: author_texts_session; HttpOnly; SameSite=Lax; Path=/api"
+        }
+    },
 )
 async def login_author_texts_user(
     payload: AuthorTextsLogin,
@@ -244,9 +257,13 @@ async def login_author_texts_user(
         raise
     settings = get_author_texts_settings()
     response.set_cookie(
-        key=settings.author_texts_session_cookie, value=new_session,
-        max_age=settings.author_texts_session_ttl, path="/api",
-        httponly=True, secure=settings.author_texts_cookie_secure, samesite="lax",
+        key=settings.author_texts_session_cookie,
+        value=new_session,
+        max_age=settings.author_texts_session_ttl,
+        path="/api",
+        httponly=True,
+        secure=settings.author_texts_cookie_secure,
+        samesite="lax",
     )
     return user
 
@@ -261,8 +278,10 @@ async def logout_author_texts_user(
     await sessions.destroy(session_id)
     response = Response(status_code=200)
     response.delete_cookie(
-        get_author_texts_settings().author_texts_session_cookie, path="/api",
-        httponly=True, secure=get_author_texts_settings().author_texts_cookie_secure,
+        get_author_texts_settings().author_texts_session_cookie,
+        path="/api",
+        httponly=True,
+        secure=get_author_texts_settings().author_texts_cookie_secure,
         samesite="lax",
     )
     return response
@@ -285,7 +304,10 @@ def get_author_texts_openapi():
     for path in ("/author_texts", "/author_texts/feed"):
         schema["paths"][path]["get"]["security"] = [{}, {"AuthorTextsSession": []}]
     schema["paths"]["/author_texts_users/login"]["post"]["security"] = []
-    schema["paths"]["/author_texts_users/logout"]["post"]["security"] = [{}, {"AuthorTextsSession": []}]
+    schema["paths"]["/author_texts_users/logout"]["post"]["security"] = [
+        {},
+        {"AuthorTextsSession": []},
+    ]
     return schema
 
 

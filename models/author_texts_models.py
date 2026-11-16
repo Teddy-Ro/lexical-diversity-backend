@@ -1,5 +1,5 @@
-from enum import StrEnum
 from datetime import datetime
+from enum import StrEnum
 
 from db.author_texts_base import AuthorTextsBase
 from sqlalchemy import (
@@ -11,8 +11,8 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
-    text,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,7 +37,9 @@ class AuthorTextsUser(AuthorTextsBase):
 class AuthorText(AuthorTextsBase):
     __tablename__ = "author_texts"
     __table_args__ = (
-        CheckConstraint("text_length >= 0", name="ck_author_texts_text_length_nonnegative"),
+        CheckConstraint(
+            "text_length >= 0", name="ck_author_texts_text_length_nonnegative"
+        ),
         CheckConstraint(
             "unique_token_count >= 0",
             name="ck_author_texts_unique_token_count_nonnegative",
@@ -72,9 +74,12 @@ class AuthorText(AuthorTextsBase):
     unique_token_count: Mapped[int | None] = mapped_column(Integer)
     text_length: Mapped[int | None] = mapped_column(Integer)
     creator_id: Mapped[int] = mapped_column(
-        ForeignKey("author_texts_users.author_texts_user_id", ondelete="RESTRICT"), nullable=False
+        ForeignKey("author_texts_users.author_texts_user_id", ondelete="RESTRICT"),
+        nullable=False,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     creator: Mapped[AuthorTextsUser] = relationship(back_populates="texts")
@@ -91,13 +96,16 @@ class AuthorTextsLike(AuthorTextsBase):
     __tablename__ = "author_texts_text_likes"
     __table_args__ = (
         UniqueConstraint(
-            "researcher_id", "author_text_id", name="uq_author_texts_researcher_text_like"
+            "researcher_id",
+            "author_text_id",
+            name="uq_author_texts_researcher_text_like",
         ),
     )
 
     author_texts_like_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     researcher_id: Mapped[int] = mapped_column(
-        ForeignKey("author_texts_users.author_texts_user_id", ondelete="RESTRICT"), nullable=False
+        ForeignKey("author_texts_users.author_texts_user_id", ondelete="RESTRICT"),
+        nullable=False,
     )
     author_text_id: Mapped[int] = mapped_column(
         ForeignKey("author_texts.author_text_id", ondelete="RESTRICT"), nullable=False
@@ -110,31 +118,52 @@ class AuthorTextsLike(AuthorTextsBase):
 class AuthorTextsAttribute(AuthorTextsBase):
     __tablename__ = "author_texts_attributes"
     __table_args__ = (
-        CheckConstraint("length(trim(attribute_name)) > 0", name="ck_author_texts_attribute_name"),
+        CheckConstraint(
+            "length(trim(attribute_name)) > 0", name="ck_author_texts_attribute_name"
+        ),
     )
 
     author_texts_attribute_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    attribute_name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    attribute_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, unique=True
+    )
     values: Mapped[list["AuthorTextsAttributeValue"]] = relationship(
-        back_populates="attribute", passive_deletes=True,
+        back_populates="attribute",
+        passive_deletes=True,
     )
 
 
 class AuthorTextsAttributeValue(AuthorTextsBase):
     __tablename__ = "author_texts_attribute_values"
     __table_args__ = (
-        UniqueConstraint("author_text_id", "author_texts_attribute_id", name="uq_author_texts_text_attribute"),
-        CheckConstraint("length(trim(attribute_value)) > 0", name="ck_author_texts_attribute_value"),
-        Index("ix_author_texts_attribute_values_attribute", "author_texts_attribute_id"),
+        UniqueConstraint(
+            "author_text_id",
+            "author_texts_attribute_id",
+            name="uq_author_texts_text_attribute",
+        ),
+        CheckConstraint(
+            "length(trim(attribute_value)) > 0", name="ck_author_texts_attribute_value"
+        ),
+        Index(
+            "ix_author_texts_attribute_values_attribute", "author_texts_attribute_id"
+        ),
     )
 
-    author_texts_attribute_value_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    author_texts_attribute_value_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True
+    )
     author_text_id: Mapped[int] = mapped_column(
-        ForeignKey("author_texts.author_text_id", ondelete="RESTRICT"), nullable=False,
+        ForeignKey("author_texts.author_text_id", ondelete="RESTRICT"),
+        nullable=False,
     )
     author_texts_attribute_id: Mapped[int] = mapped_column(
-        ForeignKey("author_texts_attributes.author_texts_attribute_id", ondelete="RESTRICT"), nullable=False,
+        ForeignKey(
+            "author_texts_attributes.author_texts_attribute_id", ondelete="RESTRICT"
+        ),
+        nullable=False,
     )
     attribute_value: Mapped[str] = mapped_column(String(500), nullable=False)
     author_text: Mapped[AuthorText] = relationship(back_populates="attribute_values")
-    attribute: Mapped[AuthorTextsAttribute] = relationship(back_populates="values", lazy="raise")
+    attribute: Mapped[AuthorTextsAttribute] = relationship(
+        back_populates="values", lazy="raise"
+    )
